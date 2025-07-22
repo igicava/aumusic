@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Music Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .player {
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .player-info {
+            text-align: center;
+        }
+
+        .track-title {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 1rem 0;
+        }
+
+        .progress {
+            height: 100%;
+            background: #4a6fa5;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .time {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #444;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button svg {
+            width: 24px;
+            height: 24px;
+            fill: #4a6fa5;
+        }
+
+        .playlist {
+            border-top: 1px solid #333;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #1a1a1a;
+        }
+
+        .track {
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid #252525;
+        }
+
+        .track:hover {
+            background: #252525;
+        }
+
+        .track.active {
+            background: #2a3a50;
+            color: #4a6fa5;
+            font-weight: 500;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .volume-control svg {
+            fill: #4a6fa5;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100px;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #4a6fa5;
+            cursor: pointer;
+        }
+
+        .playlist::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .playlist::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        .playlist::-webkit-scrollbar-thumb {
+            background: #4a6fa5;
+            border-radius: 3px;
+        }
+
+        .error {
+            color: #ff6b6b;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .loading {
+            padding: 1rem;
+            text-align: center;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="player">
+        <div class="player-info">
+            <div class="track-title" id="current-track">Выберите трек</div>
+        </div>
+
+        <div class="progress-container" id="progress-container">
+            <div class="progress" id="progress"></div>
+        </div>
+        <div class="time">
+            <span id="current-time">0:00</span>
+            <span id="duration">0:00</span>
+        </div>
+
+        <div class="player-controls">
+            <button id="prev-btn">
+                <svg viewBox="0 0 24 24">
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                </svg>
+            </button>
+            <button id="play-btn">
+                <svg viewBox="0 0 24 24" id="play-icon">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            </button>
+            <button id="next-btn">
+                <svg viewBox="0 0 24 24">
+                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="volume-control">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+            <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
+        </div>
+    </div>
+
+    <div class="playlist" id="playlist">
+        <div class="loading">Загрузка треков...</div>
+    </div>
+</div>
+
+<script>
+    const API_BASE_URL = 'http://localhost:8080';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const audio = new Audio();
+        let tracks = [];
+        let currentTrackIndex = 0;
+
+        // Элементы DOM
+        const playBtn = document.getElementById('play-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const progress = document.getElementById('progress');
+        const progressContainer = document.getElementById('progress-container');
+        const currentTimeEl = document.getElementById('current-time');
+        const durationEl = document.getElementById('duration');
+        const currentTrackEl = document.getElementById('current-track');
+        const playlistEl = document.getElementById('playlist');
+        const volumeControl = document.getElementById('volume');
+        const playIcon = document.getElementById('play-icon');
+
+        // Загружаем список треков
+        fetch(`${API_BASE_URL}/tracks`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (Array.isArray(data)) {
+                    tracks = data.sort(); // Сортируем треки по алфавиту
+                    renderPlaylist();
+                    if (tracks.length > 0) {
+                        loadTrack(0);
+                    }
+                } else {
+                    throw new Error('Invalid data format: expected array');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading tracks:', error);
+                playlistEl.innerHTML = `<div class="error">Ошибка загрузки треков: ${error.message}</div>`;
+            });
+
+        // Воспроизведение/пауза
+        playBtn.addEventListener('click', () => {
+            if (tracks.length === 0) return;
+
+            if (audio.paused) {
+                audio.play()
+                    .then(() => {
+                        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                    })
+                    .catch(error => {
+                        console.error('Playback failed:', error);
+                        alert('Не удалось воспроизвести трек. Возможно, файл поврежден или не существует.');
+                    });
+            } else {
+                audio.pause();
+                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+            }
+        });
+
+        // Следующий трек
+        nextBtn.addEventListener('click', () => {
+            if (tracks.length === 0) return;
+
+            currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
+            loadTrack(currentTrackIndex);
+            audio.play()
+                .then(() => {
+                    playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                })
+                .catch(error => {
+                    console.error('Playback failed:', error);
+                });
+            updateActiveTrack();
+        });
+
+        // Предыдущий трек
+        prevBtn.addEventListener('click', () => {
+            if (tracks.length === 0) return;
+
+            currentTrackIndex = (currentTrackIndex - 1 + tracks.length) % tracks.length;
+            loadTrack(currentTrackIndex);
+            audio.play()
+                .then(() => {
+                    playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                })
+                .catch(error => {
+                    console.error('Playback failed:', error);
+                });
+            updateActiveTrack();
+        });
+
+        // Обновление прогресса
+        audio.addEventListener('timeupdate', updateProgress);
+
+        // Клик по прогресс-бару
+        progressContainer.addEventListener('click', setProgress);
+
+        // Когда трек закончился
+        audio.addEventListener('ended', () => {
+            nextBtn.click();
+        });
+
+        // Громкость
+        volumeControl.addEventListener('input', () => {
+            audio.volume = volumeControl.value;
+        });
+
+        // Загрузка трека
+        function loadTrack(index) {
+            if (index < 0 || index >= tracks.length) return;
+
+            const track = tracks[index];
+            audio.src = `${API_BASE_URL}/tracks/${encodeURIComponent(track)}`;
+
+            // Удаляем расширение .mp3 для отображения
+            const displayName = track.replace('.mp3', '');
+            currentTrackEl.textContent = displayName;
+
+            updateActiveTrack();
+
+            // Сбрасываем прогресс
+            progress.style.width = '0%';
+            currentTimeEl.textContent = '0:00';
+            durationEl.textContent = '0:00';
+
+            // Обновляем длительность когда метаданные загружены
+            const onLoadedMetadata = () => {
+                const durationMinutes = Math.floor(audio.duration / 60);
+                let durationSeconds = Math.floor(audio.duration % 60);
+                if (durationSeconds < 10) durationSeconds = `0${durationSeconds}`;
+                durationEl.textContent = `${durationMinutes}:${durationSeconds}`;
+                audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+            };
+
+            audio.addEventListener('loadedmetadata', onLoadedMetadata);
+        }
+
+        // Обновление прогресса
+        function updateProgress() {
+            const { duration, currentTime } = audio;
+            if (isNaN(duration)) return;
+
+            const progressPercent = (currentTime / duration) * 100;
+            progress.style.width = `${progressPercent}%`;
+
+            // Время
+            const currentMinutes = Math.floor(currentTime / 60);
+            let currentSeconds = Math.floor(currentTime % 60);
+            if (currentSeconds < 10) currentSeconds = `0${currentSeconds}`;
+            currentTimeEl.textContent = `${currentMinutes}:${currentSeconds}`;
+        }
+
+        // Установка прогресса
+        function setProgress(e) {
+            if (isNaN(audio.duration)) return;
+
+            const width = this.clientWidth;
+            const clickX = e.offsetX;
+            const duration = audio.duration;
+            audio.currentTime = (clickX / width) * duration;
+        }
+
+        // Рендер плейлиста
+        function renderPlaylist() {
+            if (tracks.length === 0) {
+                playlistEl.innerHTML = '<div class="track">Нет доступных треков</div>';
+                return;
+            }
+
+            playlistEl.innerHTML = tracks.map((track, index) => {
+                // Удаляем расширение .mp3 для отображения
+                const displayName = track.replace('.mp3', '');
+                return `
+                        <div class="track" data-index="${index}">
+                            ${displayName}
+                        </div>
+                    `;
+            }).join('');
+
+            // Клик по треку в плейлисте
+            document.querySelectorAll('.track').forEach(track => {
+                track.addEventListener('click', () => {
+                    currentTrackIndex = parseInt(track.dataset.index);
+                    loadTrack(currentTrackIndex);
+                    audio.play()
+                        .then(() => {
+                            playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                        })
+                        .catch(error => {
+                            console.error('Playback failed:', error);
+                            alert('Не удалось воспроизвести трек');
+                        });
+                    updateActiveTrack();
+                });
+            });
+
+            updateActiveTrack();
+        }
+
+        // Обновление активного трека в плейлисте
+        function updateActiveTrack() {
+            document.querySelectorAll('.track').forEach((track, index) => {
+                if (index === currentTrackIndex) {
+                    track.classList.add('active');
+                } else {
+                    track.classList.remove('active');
+                }
+            });
+        }
+
+        // Установка начальной громкости
+        audio.volume = volumeControl.value;
+    });
+</script>
+</body>
+</html>
