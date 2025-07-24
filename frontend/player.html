@@ -3,8 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Music Player</title>
+    <title>Music Player with File Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --primary: #4a6fa5;
+            --bg-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --bg-secondary: #252525;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --border: #333333;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,54 +24,50 @@
         }
 
         body {
-            background-color: #121212;
-            color: #e0e0e0;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
             display: flex;
             flex-direction: column;
-            align-items: center;
             min-height: 100vh;
-            padding: 2rem;
         }
 
         .container {
-            width: 100%;
-            max-width: 600px;
-            background: #1e1e1e;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            border: 1px solid #333;
-        }
-
-        .player {
-            padding: 2rem;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            height: 100vh;
         }
 
-        .player-controls {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
+        .player-container {
+            padding: 1.5rem;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            z-index: 2;
         }
 
         .player-info {
             text-align: center;
+            margin-bottom: 1rem;
         }
 
         .track-title {
             font-size: 1.2rem;
             font-weight: 500;
-            margin-bottom: 0.5rem;
-            color: #ffffff;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .track-path {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
         }
 
         .progress-container {
             width: 100%;
             height: 6px;
-            background: #333;
+            background: var(--border);
             border-radius: 3px;
             cursor: pointer;
             margin: 1rem 0;
@@ -68,7 +75,7 @@
 
         .progress {
             height: 100%;
-            background: #4a6fa5;
+            background: var(--primary);
             border-radius: 3px;
             width: 0%;
             transition: width 0.1s;
@@ -78,11 +85,19 @@
             display: flex;
             justify-content: space-between;
             font-size: 0.8rem;
-            color: #aaa;
+            color: var(--text-secondary);
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin: 1rem 0;
         }
 
         button {
-            background: #333;
+            background: var(--bg-secondary);
             color: white;
             border: none;
             border-radius: 50%;
@@ -96,7 +111,7 @@
         }
 
         button:hover {
-            background: #444;
+            background: var(--primary);
             transform: scale(1.05);
         }
 
@@ -107,31 +122,7 @@
         button svg {
             width: 24px;
             height: 24px;
-            fill: #4a6fa5;
-        }
-
-        .playlist {
-            border-top: 1px solid #333;
-            max-height: 300px;
-            overflow-y: auto;
-            background: #1a1a1a;
-        }
-
-        .track {
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            border-bottom: 1px solid #252525;
-        }
-
-        .track:hover {
-            background: #252525;
-        }
-
-        .track.active {
-            background: #2a3a50;
-            color: #4a6fa5;
-            font-weight: 500;
+            fill: currentColor;
         }
 
         .volume-control {
@@ -141,15 +132,11 @@
             margin-top: 0.5rem;
         }
 
-        .volume-control svg {
-            fill: #4a6fa5;
-        }
-
         input[type="range"] {
             -webkit-appearance: none;
             width: 100px;
             height: 4px;
-            background: #333;
+            background: var(--border);
             border-radius: 2px;
             outline: none;
         }
@@ -159,21 +146,84 @@
             width: 14px;
             height: 14px;
             border-radius: 50%;
-            background: #4a6fa5;
+            background: var(--primary);
             cursor: pointer;
         }
 
-        .playlist::-webkit-scrollbar {
-            width: 6px;
+        .file-manager {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--bg-panel);
+            padding: 1rem;
         }
 
-        .playlist::-webkit-scrollbar-track {
-            background: #1a1a1a;
+        .breadcrumbs {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
         }
 
-        .playlist::-webkit-scrollbar-thumb {
-            background: #4a6fa5;
-            border-radius: 3px;
+        .breadcrumb {
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb:hover {
+            color: var(--primary);
+        }
+
+        .breadcrumb-separator {
+            margin: 0 0.3rem;
+            color: var(--text-secondary);
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .file-item.active {
+            background: rgba(74, 111, 165, 0.2);
+            color: var(--primary);
+        }
+
+        .file-icon {
+            margin-right: 1rem;
+            width: 24px;
+            text-align: center;
+            color: var(--primary);
+        }
+
+        .file-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .loading {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-secondary);
         }
 
         .error {
@@ -182,18 +232,118 @@
             text-align: center;
         }
 
-        .loading {
-            padding: 1rem;
-            text-align: center;
-            color: #aaa;
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+                height: 100vh;
+            }
+
+            .player-container {
+                width: 350px;
+                height: 100vh;
+                border-right: 1px solid var(--border);
+                border-bottom: none;
+            }
+
+            .file-manager {
+                flex: 1;
+                height: 100vh;
+            }
+
+            .queue-container {
+                position: fixed;
+                bottom: 0;
+                right: 0;
+                width: 300px;
+                max-height: 300px;
+                background: var(--bg-panel);
+                border: 1px solid var(--border);
+                border-radius: 8px 8px 0 0;
+                overflow-y: auto;
+                transform: translateY(calc(100% - 40px));
+                transition: transform 0.3s;
+                z-index: 100;
+            }
+
+            .queue-container:hover,
+            .queue-container.expanded {
+                transform: translateY(0);
+            }
+
+            .queue-header {
+                padding: 0.5rem 1rem;
+                background: var(--bg-secondary);
+                cursor: pointer;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .queue-title {
+                font-weight: 500;
+            }
+
+            .queue-count {
+                background: var(--primary);
+                color: white;
+                border-radius: 10px;
+                padding: 0.2rem 0.5rem;
+                font-size: 0.8rem;
+            }
+
+            .queue-list {
+                max-height: 250px;
+                overflow-y: auto;
+            }
+
+            .queue-item {
+                padding: 0.5rem 1rem;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                align-items: center;
+                cursor: pointer;
+            }
+
+            .queue-item:hover {
+                background: var(--bg-secondary);
+            }
+
+            .queue-item.active {
+                color: var(--primary);
+                font-weight: 500;
+            }
+
+            .queue-item-index {
+                margin-right: 0.8rem;
+                color: var(--text-secondary);
+            }
+
+            .queue-item-remove {
+                margin-left: auto;
+                color: var(--text-secondary);
+                opacity: 0;
+                transition: opacity 0.2s;
+            }
+
+            .queue-item:hover .queue-item-remove {
+                opacity: 1;
+            }
+
+            @media (max-width: 768px) {
+                .queue-container {
+                    width: 100%;
+                    max-height: 200px;
+                }
+            }
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="player">
+    <div class="player-container">
         <div class="player-info">
             <div class="track-title" id="current-track">Выберите трек</div>
+            <div class="track-path" id="current-path"></div>
         </div>
 
         <div class="progress-container" id="progress-container">
@@ -223,25 +373,40 @@
         </div>
 
         <div class="volume-control">
-            <svg viewBox="0 0 24 24" width="20" height="20">
-                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
+            <i class="fas fa-volume-up"></i>
             <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
         </div>
     </div>
 
-    <div class="playlist" id="playlist">
-        <div class="loading">Загрузка треков...</div>
+    <div class="file-manager">
+        <div class="breadcrumbs" id="breadcrumbs">
+            <div class="breadcrumb" data-path="">Корневая папка</div>
+        </div>
+
+        <div class="file-list" id="file-list">
+            <div class="loading">Загрузка...</div>
+        </div>
+    </div>
+    <div class="queue-container" id="queue-container">
+        <div class="queue-header" id="queue-header">
+            <div class="queue-title">Очередь</div>
+            <div class="queue-count" id="queue-count">0</div>
+        </div>
+        <div class="queue-list" id="queue-list"></div>
     </div>
 </div>
 
 <script>
+    let playQueue = [];
+    let currentQueueIndex = -1;
     const API_BASE_URL = 'http://localhost:8080';
+    const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.m4a', '.flac'];
 
     document.addEventListener('DOMContentLoaded', () => {
         const audio = new Audio();
-        let tracks = [];
         let currentTrackIndex = 0;
+        let currentFiles = [];
+        let currentPath = '';
 
         // Элементы DOM
         const playBtn = document.getElementById('play-btn');
@@ -252,83 +417,41 @@
         const currentTimeEl = document.getElementById('current-time');
         const durationEl = document.getElementById('duration');
         const currentTrackEl = document.getElementById('current-track');
-        const playlistEl = document.getElementById('playlist');
+        const currentPathEl = document.getElementById('current-path');
+        const fileListEl = document.getElementById('file-list');
+        const breadcrumbsEl = document.getElementById('breadcrumbs');
         const volumeControl = document.getElementById('volume');
         const playIcon = document.getElementById('play-icon');
+        const queueContainer = document.getElementById('queue-container');
+        const queueHeader = document.getElementById('queue-header');
+        const queueList = document.getElementById('queue-list');
+        const queueCount = document.getElementById('queue-count');
 
-        // Загружаем список треков
-        fetch(`${API_BASE_URL}/tracks`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (Array.isArray(data)) {
-                    tracks = data.sort(); // Сортируем треки по алфавиту
-                    renderPlaylist();
-                    if (tracks.length > 0) {
-                        loadTrack(0);
-                    }
-                } else {
-                    throw new Error('Invalid data format: expected array');
-                }
-            })
-            .catch(error => {
-                console.error('Error loading tracks:', error);
-                playlistEl.innerHTML = `<div class="error">Ошибка загрузки треков: ${error.message}</div>`;
-            });
+        // Инициализация
+        audio.volume = volumeControl.value;
+        loadDirectory('');
 
         // Воспроизведение/пауза
-        playBtn.addEventListener('click', () => {
-            if (tracks.length === 0) return;
-
-            if (audio.paused) {
-                audio.play()
-                    .then(() => {
-                        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                    })
-                    .catch(error => {
-                        console.error('Playback failed:', error);
-                        alert('Не удалось воспроизвести трек. Возможно, файл поврежден или не существует.');
-                    });
-            } else {
-                audio.pause();
-                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-            }
-        });
+        playBtn.addEventListener('click', togglePlay);
 
         // Следующий трек
         nextBtn.addEventListener('click', () => {
-            if (tracks.length === 0) return;
-
-            currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
-            loadTrack(currentTrackIndex);
-            audio.play()
-                .then(() => {
-                    playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                })
-                .catch(error => {
-                    console.error('Playback failed:', error);
-                });
-            updateActiveTrack();
+            if (playQueue.length > 0 && currentQueueIndex < playQueue.length - 1) {
+                currentQueueIndex++;
+                playFromQueue(currentQueueIndex);
+            }
         });
-
+        
         // Предыдущий трек
         prevBtn.addEventListener('click', () => {
-            if (tracks.length === 0) return;
+            if (playQueue.length > 0 && currentQueueIndex > 0) {
+                currentQueueIndex--;
+                playFromQueue(currentQueueIndex);
+            }
+        });
 
-            currentTrackIndex = (currentTrackIndex - 1 + tracks.length) % tracks.length;
-            loadTrack(currentTrackIndex);
-            audio.play()
-                .then(() => {
-                    playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                })
-                .catch(error => {
-                    console.error('Playback failed:', error);
-                });
-            updateActiveTrack();
+        queueHeader.addEventListener('click', () => {
+            queueContainer.classList.toggle('expanded');
         });
 
         // Обновление прогресса
@@ -339,7 +462,14 @@
 
         // Когда трек закончился
         audio.addEventListener('ended', () => {
-            nextBtn.click();
+            if (playQueue.length > 0 && currentQueueIndex < playQueue.length - 1) {
+                currentQueueIndex++;
+                loadTrack(playQueue[currentQueueIndex], currentQueueIndex);
+            } else {
+                playQueue = [];
+                currentQueueIndex = -1;
+                updateQueueDisplay();
+            }
         });
 
         // Громкость
@@ -347,37 +477,67 @@
             audio.volume = volumeControl.value;
         });
 
-        // Загрузка трека
-        function loadTrack(index) {
-            if (index < 0 || index >= tracks.length) return;
+        // Функции
 
-            const track = tracks[index];
-            audio.src = `${API_BASE_URL}/tracks/${encodeURIComponent(track)}`;
+        function togglePlay() {
+            if (currentFiles.length === 0) return;
 
-            // Удаляем расширение .mp3 для отображения
-            const displayName = track.replace('.mp3', '');
-            currentTrackEl.textContent = displayName;
+            if (audio.paused) {
+                audio.play()
+                    .then(() => {
+                        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                    })
+                    .catch(error => {
+                        console.error('Playback failed:', error);
+                        alert('Не удалось воспроизвести трек. Возможно, файл поврежден.');
+                    });
+            } else {
+                audio.pause();
+                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+            }
+        }
 
-            updateActiveTrack();
+        function playCurrentTrack() {
+            const track = currentFiles[currentTrackIndex];
+            if (!track || !isAudioFile(track)) return;
 
-            // Сбрасываем прогресс
+            const fullPath = currentPath ? `${currentPath}/${track}` : track;
+            loadTrack(fullPath);
+            updateActiveFile();
+        }
+
+        function loadTrack(path, queueIndex = -1) {
+            if (queueIndex >= 0) {
+                currentQueueIndex = queueIndex;
+            }
+
+            audio.src = `${API_BASE_URL}/tracks/${encodeURIComponent(path)}`;
+
+            const fileName = path.split('/').pop();
+            currentTrackEl.textContent = fileName.replace(/\.[^/.]+$/, "");
+            currentPathEl.textContent = path;
+
             progress.style.width = '0%';
             currentTimeEl.textContent = '0:00';
             durationEl.textContent = '0:00';
 
-            // Обновляем длительность когда метаданные загружены
-            const onLoadedMetadata = () => {
+            audio.addEventListener('loadedmetadata', () => {
                 const durationMinutes = Math.floor(audio.duration / 60);
                 let durationSeconds = Math.floor(audio.duration % 60);
                 if (durationSeconds < 10) durationSeconds = `0${durationSeconds}`;
                 durationEl.textContent = `${durationMinutes}:${durationSeconds}`;
-                audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-            };
+            }, { once: true });
 
-            audio.addEventListener('loadedmetadata', onLoadedMetadata);
+            audio.play()
+                .then(() => {
+                    playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                    updateQueueHighlight();
+                })
+                .catch(error => {
+                    console.error('Autoplay failed:', error);
+                });
         }
 
-        // Обновление прогресса
         function updateProgress() {
             const { duration, currentTime } = audio;
             if (isNaN(duration)) return;
@@ -392,7 +552,6 @@
             currentTimeEl.textContent = `${currentMinutes}:${currentSeconds}`;
         }
 
-        // Установка прогресса
         function setProgress(e) {
             if (isNaN(audio.duration)) return;
 
@@ -402,56 +561,198 @@
             audio.currentTime = (clickX / width) * duration;
         }
 
-        // Рендер плейлиста
-        function renderPlaylist() {
-            if (tracks.length === 0) {
-                playlistEl.innerHTML = '<div class="track">Нет доступных треков</div>';
+        function renderBreadcrumbs(path) {
+            console.log('[Breadcrumbs] Rendering for path:', path);
+
+            breadcrumbsEl.innerHTML = '';
+
+            // Корневая папка
+            const rootCrumb = document.createElement('div');
+            rootCrumb.className = 'breadcrumb';
+            rootCrumb.textContent = 'Корневая папка';
+            rootCrumb.addEventListener('click', () => {
+                console.log('Navigating to root');
+                loadDirectory('');
+            });
+            breadcrumbsEl.appendChild(rootCrumb);
+
+            const parts = path.split('/').filter(p => p.length > 0);
+            let accumulatedPath = '';
+
+            parts.forEach((part, index) => {
+                // Добавляем разделитель
+                const separator = document.createElement('span');
+                separator.className = 'breadcrumb-separator';
+                separator.innerHTML = '&rsaquo;';
+                breadcrumbsEl.appendChild(separator);
+
+                // Важное изменение: накапливаем путь только до текущей части
+                const crumbPath = parts.slice(0, index + 1).join('/');
+                console.log(`Creating crumb for part: ${part}, path: ${crumbPath}`);
+
+                const crumb = document.createElement('div');
+                crumb.className = 'breadcrumb';
+                crumb.textContent = part;
+                crumb.addEventListener('click', () => {
+                    console.log(`Clicked crumb with path: ${crumbPath}`);
+                    loadDirectory(crumbPath);
+                });
+
+                breadcrumbsEl.appendChild(crumb);
+            });
+        }
+
+        function loadDirectory(path) {
+            path = path || '';
+            console.log('[loadDirectory] Loading:', path);
+
+            // Нормализуем путь (удаляем лишние слеши)
+            path = path.replace(/^\/+|\/+$/g, '');
+            currentPath = path;
+
+            fileListEl.innerHTML = '<div class="loading">Загрузка...</div>';
+
+            fetch(`${API_BASE_URL}/tracks?path=${encodeURIComponent(path)}`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(files => {
+                    currentFiles = files.filter(file => isDirectory(file) || isAudioFile(file));
+                    console.log('Filtered files:', currentFiles);
+                    renderBreadcrumbs(path);
+                    renderFileList(currentFiles);
+                })
+                .catch(error => {
+                    console.error('Error loading directory:', error);
+                    fileListEl.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+                });
+        }
+
+        function renderFileList(files) {
+            if (files.length === 0) {
+                fileListEl.innerHTML = '<div class="file-item">Папка пуста</div>';
                 return;
             }
 
-            playlistEl.innerHTML = tracks.map((track, index) => {
-                // Удаляем расширение .mp3 для отображения
-                const displayName = track.replace('.mp3', '');
+            fileListEl.innerHTML = files.map((file, index) => {
+                const isDir = isDirectory(file);
+                const icon = isDir ? 'fa-folder' : 'fa-music';
+                const type = isDir ? 'directory' : 'file';
+
                 return `
-                        <div class="track" data-index="${index}">
-                            ${displayName}
-                        </div>
-                    `;
+                    <div class="file-item" data-name="${file}" data-type="${type}" data-index="${index}">
+                        <div class="file-icon"><i class="fas ${icon}"></i></div>
+                        <div class="file-name">${file}</div>
+                    </div>
+                `;
             }).join('');
 
-            // Клик по треку в плейлисте
-            document.querySelectorAll('.track').forEach(track => {
-                track.addEventListener('click', () => {
-                    currentTrackIndex = parseInt(track.dataset.index);
-                    loadTrack(currentTrackIndex);
-                    audio.play()
-                        .then(() => {
-                            playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                        })
-                        .catch(error => {
-                            console.error('Playback failed:', error);
-                            alert('Не удалось воспроизвести трек');
-                        });
-                    updateActiveTrack();
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const fileName = item.dataset.name;
+                    const type = item.dataset.type;
+                    const fileIndex = parseInt(item.dataset.index);
+
+                    if (type === 'directory') {
+                        const newPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+                        loadDirectory(newPath);
+                    } else {
+                        // Добавляем в очередь все файлы начиная с выбранного
+                        const audioFiles = currentFiles.filter(f => !isDirectory(f));
+                        const startIndex = audioFiles.indexOf(fileName);
+
+                        if (startIndex >= 0) {
+                            playQueue = audioFiles.slice(startIndex).map(f =>
+                                currentPath ? `${currentPath}/${f}` : f
+                            );
+                            currentQueueIndex = 0;
+                            updateQueueDisplay();
+                            loadTrack(playQueue[0], 0);
+                        }
+                    }
                 });
             });
-
-            updateActiveTrack();
         }
 
-        // Обновление активного трека в плейлисте
-        function updateActiveTrack() {
-            document.querySelectorAll('.track').forEach((track, index) => {
-                if (index === currentTrackIndex) {
-                    track.classList.add('active');
-                } else {
-                    track.classList.remove('active');
-                }
+        function updateActiveFile() {
+            document.querySelectorAll('.file-item').forEach(item => {
+                const fileName = item.dataset.name;
+                const isActive = currentFiles[currentTrackIndex] === fileName && item.dataset.type === 'file';
+                item.classList.toggle('active', isActive);
             });
         }
 
-        // Установка начальной громкости
-        audio.volume = volumeControl.value;
+        function isDirectory(filename) {
+            return !filename.includes('.');
+        }
+
+
+        function isAudioFile(filename) {
+            return AUDIO_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(ext));
+        }
+
+        function updateQueueDisplay() {
+            queueList.innerHTML = playQueue.map((track, index) => {
+                const fileName = track.split('/').pop().replace(/\.[^/.]+$/, "");
+                return `
+                    <div class="queue-item ${index === currentQueueIndex ? 'active' : ''}"
+                         data-index="${index}">
+                        <div class="queue-item-index">${index + 1}</div>
+                        <div class="queue-item-name">${fileName}</div>
+                        <div class="queue-item-remove" data-index="${index}">
+                            <i class="fas fa-times"></i>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            queueCount.textContent = playQueue.length;
+
+            // Обработчики для элементов очереди
+            document.querySelectorAll('.queue-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('.queue-item-remove')) {
+                        e.stopPropagation();
+                        const index = parseInt(e.target.closest('.queue-item-remove').dataset.index);
+                        removeFromQueue(index);
+                    } else {
+                        const index = parseInt(item.dataset.index);
+                        playFromQueue(index);
+                    }
+                });
+            });
+        }
+
+        function updateQueueHighlight() {
+            document.querySelectorAll('.queue-item').forEach(item => {
+                item.classList.toggle('active',
+                    parseInt(item.dataset.index) === currentQueueIndex
+                );
+            });
+        }
+
+        function playFromQueue(index) {
+            if (index >= 0 && index < playQueue.length) {
+                currentQueueIndex = index;
+                loadTrack(playQueue[index], index);
+            }
+        }
+
+        function removeFromQueue(index) {
+            if (index >= 0 && index < playQueue.length) {
+                playQueue.splice(index, 1);
+                if (currentQueueIndex >= index) {
+                    currentQueueIndex--;
+                }
+                updateQueueDisplay();
+
+                if (playQueue.length === 0) {
+                    currentQueueIndex = -1;
+                    audio.pause();
+                }
+            }
+        }
     });
 </script>
 </body>
