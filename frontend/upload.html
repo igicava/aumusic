@@ -52,6 +52,30 @@
       margin-bottom: 5px;
       border-radius: 3px;
     }
+    .progress-container {
+      margin-top: 20px;
+      display: none;
+    }
+    .progress-bar {
+      width: 100%;
+      background-color: #f1f1f1;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    .progress {
+      height: 20px;
+      border-radius: 5px;
+      background-color: #4CAF50;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .status {
+      text-align: center;
+      font-weight: bold;
+    }
+    #uploadStatus {
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -77,8 +101,15 @@
     </div>
   </div>
 
-  <button type="submit">Загрузить треки</button>
+  <button type="submit" id="submitBtn">Загрузить треки</button>
 </form>
+
+<div class="progress-container" id="progressContainer">
+  <div class="progress-bar">
+    <div class="progress" id="progressBar"></div>
+  </div>
+  <div class="status" id="uploadStatus">Подготовка к загрузке...</div>
+</div>
 
 <script>
   // Отображение списка выбранных файлов
@@ -90,24 +121,85 @@
       const fileItem = document.createElement('div');
       fileItem.className = 'file-item';
       fileItem.innerHTML = `
-                    <span>${this.files[i].name}</span>
-                    <span>${(this.files[i].size / 1024 / 1024).toFixed(2)} MB</span>
-                `;
+        <span>${this.files[i].name}</span>
+        <span>${(this.files[i].size / 1024 / 1024).toFixed(2)} MB</span>
+      `;
       fileList.appendChild(fileItem);
     }
   });
 
   // Обработка отправки формы
   document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
     const files = document.getElementById('files').files;
     if (files.length === 0) {
       alert('Пожалуйста, выберите хотя бы один файл');
-      e.preventDefault();
-      return false;
+      return;
     }
 
-    // Можно добавить дополнительную проверку размера файлов здесь
-    return true;
+    const artist = document.getElementById('artist').value;
+    const album = document.getElementById('album').value;
+
+    if (!artist || !album) {
+      alert('Пожалуйста, заполните все поля');
+      return;
+    }
+
+    // Показываем progress bar
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const submitBtn = document.getElementById('submitBtn');
+
+    progressContainer.style.display = 'block';
+    submitBtn.disabled = true;
+
+    // Создаем FormData и добавляем файлы
+    const formData = new FormData();
+    formData.append('artist', artist);
+    formData.append('album', album);
+
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+
+    // Отправляем запрос с отслеживанием прогресса
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', function(e) {
+      if (e.lengthComputable) {
+        const percentComplete = (e.loaded / e.total) * 100;
+        progressBar.style.width = percentComplete + '%';
+        uploadStatus.textContent = `Загрузка: ${Math.round(percentComplete)}%`;
+      }
+    });
+
+    xhr.addEventListener('load', function() {
+      if (xhr.status === 201) {
+        uploadStatus.textContent = 'Загрузка завершена успешно!';
+        try {
+          const response = JSON.parse(xhr.responseText);
+          console.log('Upload successful:', response);
+          // Можно добавить отображение результатов
+        } catch (e) {
+          console.error('Error parsing response:', e);
+        }
+      } else {
+        uploadStatus.textContent = 'Ошибка при загрузке: ' + xhr.statusText;
+        console.error('Upload error:', xhr.statusText);
+      }
+      submitBtn.disabled = false;
+    });
+
+    xhr.addEventListener('error', function() {
+      uploadStatus.textContent = 'Ошибка при загрузке';
+      console.error('Upload error');
+      submitBtn.disabled = false;
+    });
+
+    xhr.open('POST', '/upload', true);
+    xhr.send(formData);
   });
 </script>
 </body>

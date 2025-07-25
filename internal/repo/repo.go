@@ -7,8 +7,8 @@ import (
 )
 
 func AddTrack(ctx context.Context, pool *pgxpool.Pool, track models.TrackDB) error {
-	sql := "INSERT INTO tracks (user_id, name, artist, album, size, mod_time, path) VALUES ($1, $2, $3, $4, $5)"
-	_, err := pool.Exec(ctx, sql, track.Name, track.Artist, track.Album, track.Size, track.ModTime, track.Path)
+	sql := "INSERT INTO tracks (user_id, name, artist, album, size, mod_time, path) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	_, err := pool.Exec(ctx, sql, track.UserId, track.Name, track.Artist, track.Album, track.Size, track.ModTime, track.Path)
 	if err != nil {
 		return err
 	}
@@ -115,9 +115,9 @@ func NewUser(ctx context.Context, pool *pgxpool.Pool, user models.User) error {
 }
 
 func GetUser(ctx context.Context, pool *pgxpool.Pool, username string) (models.User, error) {
-	sql := "SELECT name, password, email FROM users WHERE name = $1"
+	sql := "SELECT id, name, password, email FROM users WHERE name = $1"
 	var user models.User
-	err := pool.QueryRow(ctx, sql, username).Scan(&user.Name, &user.Pass, &user.Email)
+	err := pool.QueryRow(ctx, sql, username).Scan(&user.Id, &user.Name, &user.Pass, &user.Email)
 	if err != nil {
 		return models.User{}, err
 	}

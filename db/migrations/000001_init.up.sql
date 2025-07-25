@@ -6,7 +6,7 @@ create table if not exists users (
 );
 
 create table if not exists tracks (
-    id uuid primary key unique not null,
+    id uuid primary key unique not null default gen_random_uuid(),
     user_id uuid not null references users(id),
     name text not null not null,
     artist text not null not null,
@@ -17,13 +17,13 @@ create table if not exists tracks (
 );
 
 create table if not exists playlists (
-    id uuid primary key unique not null,
+    id uuid primary key unique not null default gen_random_uuid(),
     user_id uuid not null references users(id),
     name text not null not null unique
 );
 
 create table if not exists playlist_tracks (
-    id uuid primary key unique not null,
+    id uuid primary key unique not null default gen_random_uuid(),
     playlist_id uuid not null references playlists(id),
     track_id uuid not null references tracks(id)
 );

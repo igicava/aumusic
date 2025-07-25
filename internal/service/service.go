@@ -14,14 +14,13 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 )
 
 const (
 	MEDIA         = "/media/"
 	MUSIC         = "/media/music/"
-	MaxUploadSize = 100 << 20
+	MaxUploadSize = 500 << 20
 )
 
 var Pool *pgxpool.Pool
@@ -52,12 +51,12 @@ func GetTrack(ctx context.Context, token, id string) (io.ReadSeeker, int64, time
 		return nil, 0, time.Time{}, http.ErrServerClosed
 	}
 
-	owner, _, err := ValidToken(ctx, token)
+	_, ownerId, err := ValidToken(ctx, token)
 	if err != nil {
 		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to validate token", zap.Error(err))
 		return nil, 0, time.Time{}, err
 	}
-	if owner != track.UserId {
+	if ownerId != track.UserId {
 		return nil, 0, time.Time{}, http.ErrServerClosed
 	}
 
@@ -101,19 +100,32 @@ func RegisterUser(ctx context.Context, r *http.Request) error {
 	return nil
 }
 
-func LoginUser(ctx context.Context, r *http.Request) error {
+func LoginUser(ctx context.Context, r *http.Request) (string, error) {
 	name := r.FormValue("name")
 	pass := r.FormValue("pass")
 	user, err := repo.GetUser(ctx, Pool, name)
 	if err != nil {
 		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to get user", zap.Error(err))
-		return err
-	}
-	if isValid := hash.AuthenticateUser(user.Pass, pass); isValid != nil {
-		return isValid
+		return "", err
 	}
 
-	return nil
+	if isValid := hash.AuthenticateUser(user.Pass, pass); isValid != nil {
+		return "", isValid
+	}
+
+	fmt.Println(r.FormValue("username"), r.FormValue("id"))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"username": user.Name,
+		"userid":   user.Id,
+	})
+
+	tokenString, err := token.SignedString([]byte(r.Context().Value("cfg").(*config.Config).JWTSecret))
+	if err != nil {
+		logger.GetLoggerFromCtx(r.Context()).Info(r.Context(), "Failed to sign token", zap.Error(err))
+		return "", err
+	}
+
+	return tokenString, nil
 }
 
 func GetTracksByUser(ctx context.Context, userId string) ([]models.Track, error) {
@@ -123,85 +135,6 @@ func GetTracksByUser(ctx context.Context, userId string) ([]models.Track, error)
 		return nil, err
 	}
 	return tracks, nil
-}
-
-func LoadTracks(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	token, err := r.Cookie("token")
-	if err != nil {
-		http.Redirect(w, r, "/login", http.StatusUnauthorized)
-		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to get token", zap.Error(err))
-		return err
-	}
-	_, userid, err := ValidToken(ctx, token.Value)
-	if err != nil {
-		http.Redirect(w, r, "/login", http.StatusUnauthorized)
-		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to validate token", zap.Error(err))
-		return err
-	}
-
-	artist, album := r.FormValue("artist"), r.FormValue("album")
-	uploadPath := fmt.Sprintf("%s%s%s%s", MUSIC, userid, artist, album)
-
-	r.Body = http.MaxBytesReader(w, r.Body, MaxUploadSize)
-	if err := r.ParseMultipartForm(MaxUploadSize); err != nil {
-		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to parse multipart form", zap.Error(err))
-		http.Error(w, "File too large", http.StatusBadRequest)
-		return err
-	}
-
-	files := r.MultipartForm.File["files"]
-	for _, fileHeader := range files {
-		// Открываем файл
-		file, err := fileHeader.Open()
-		if err != nil {
-			logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to open file", zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return err
-		}
-		defer file.Close()
-
-		// Создаем целевой файл
-		dstPath := filepath.Join(uploadPath, fileHeader.Filename)
-		dst, err := os.Create(dstPath)
-		if err != nil {
-			logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to create file", zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return err
-		}
-		defer dst.Close()
-
-		// Копируем содержимое файла
-		if _, err := io.Copy(dst, file); err != nil {
-			logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to copy file", zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return err
-		}
-
-		fileInfo, err := dst.Stat()
-		if err != nil {
-			logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to stat file", zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return err
-		}
-
-		track := models.TrackDB{
-			UserId:  userid,
-			Artist:  artist,
-			Album:   album,
-			Name:    fileHeader.Filename,
-			Path:    dstPath,
-			Size:    fileHeader.Size,
-			ModTime: fileInfo.ModTime(),
-		}
-
-		err = repo.AddTrack(ctx, Pool, track)
-		if err != nil {
-			logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to add track", zap.Error(err))
-			return err
-		}
-	}
-
-	return nil
 }
 
 func DeleteTrack(ctx context.Context, token, id string) error {
