@@ -59,28 +59,6 @@ func RunTrack(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, trackName, modTime, file)
 }
 
-// ListTracks is a legacy method
-func ListTracks(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Query().Get("path")
-	tracksNames, err := service.ListTracks(r.Context(), path)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		logger.GetLoggerFromCtx(r.Context()).Info(r.Context(), "Failed to list tracks", zap.Error(err))
-		return
-	}
-
-	js, err := json.Marshal(tracksNames)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		logger.GetLoggerFromCtx(r.Context()).Info(r.Context(), "json marshal error", zap.Error(err))
-		return
-	}
-
-	enableCORS(&w)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
-}
-
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	enableCORS(&w)
 	if r.Method == "GET" {
@@ -112,10 +90,10 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"username": r.FormValue("name"),
+			"username": r.FormValue("username"),
 			"userid":   r.FormValue("id"),
 		})
-		tokenString, err := token.SignedString(r.Context().Value("cfg").(*config.Config).JWTSecret)
+		tokenString, err := token.SignedString([]byte(r.Context().Value("cfg").(*config.Config).JWTSecret))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			logger.GetLoggerFromCtx(r.Context()).Info(r.Context(), "Failed to sign token", zap.Error(err))
@@ -172,4 +150,40 @@ func GetTracksByUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
+}
+
+func LoadTracks(w http.ResponseWriter, r *http.Request) {
+	enableCORS(&w)
+	if r.Method == "GET" {
+		http.ServeFile(w, r, "frontend/upload.html")
+		return
+	}
+	if r.Method != "POST" {
+		err := service.LoadTracks(r.Context(), w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			logger.GetLoggerFromCtx(r.Context()).Info(r.Context(), "Failed to load tracks", zap.Error(err))
+			return
+		}
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
+
+func DeleteTrack(w http.ResponseWriter, r *http.Request) {
+	enableCORS(&w)
+	if r.Method != "DELETE" {
+		token, err := r.Cookie("token")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			logger.GetLoggerFromCtx(r.Context()).Info(r.Context(), "Failed to get token", zap.Error(err))
+			return
+		}
+		trackId := r.PathValue("id")
+		err = service.DeleteTrack(r.Context(), token.Value, trackId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			logger.GetLoggerFromCtx(r.Context()).Info(r.Context(), "Failed to delete track", zap.Error(err))
+			return
+		}
+	}
 }

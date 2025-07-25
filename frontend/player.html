@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Player with File Manager</title>
+    <title>Music Player</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -44,6 +44,88 @@
             z-index: 2;
         }
 
+        .library-container {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .library-nav {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .library-nav-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .library-nav-btn.active {
+            color: var(--primary);
+            background: var(--bg-secondary);
+        }
+
+        .library-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .track-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .track-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .track-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .track-item.active {
+            background: rgba(74, 111, 165, 0.2);
+        }
+
+        .track-icon {
+            margin-right: 1rem;
+            color: var(--primary);
+        }
+
+        .track-info {
+            flex: 1;
+        }
+
+        .track-title {
+            font-weight: 500;
+        }
+
+        .track-artist {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .track-duration {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-left: 1rem;
+        }
+
+        /* Стили плеера */
         .player-info {
             text-align: center;
             margin-bottom: 1rem;
@@ -58,8 +140,8 @@
             text-overflow: ellipsis;
         }
 
-        .track-path {
-            font-size: 0.8rem;
+        .track-artist {
+            font-size: 0.9rem;
             color: var(--text-secondary);
             margin-top: 0.2rem;
         }
@@ -150,190 +232,90 @@
             cursor: pointer;
         }
 
-        .file-manager {
-            flex: 1;
-            overflow-y: auto;
+        /* Стили очереди */
+        .queue-container {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 300px;
+            max-height: 300px;
             background: var(--bg-panel);
-            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px 8px 0 0;
+            overflow-y: auto;
+            transform: translateY(calc(100% - 40px));
+            transition: transform 0.3s;
+            z-index: 100;
         }
 
-        .breadcrumbs {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
+        .queue-container:hover,
+        .queue-container.expanded {
+            transform: translateY(0);
         }
 
-        .breadcrumb {
-            color: var(--text-secondary);
+        .queue-header {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
             cursor: pointer;
             display: flex;
+            justify-content: space-between;
             align-items: center;
         }
 
-        .breadcrumb:hover {
-            color: var(--primary);
+        .queue-title {
+            font-weight: 500;
         }
 
-        .breadcrumb-separator {
-            margin: 0 0.3rem;
-            color: var(--text-secondary);
+        .queue-count {
+            background: var(--primary);
+            color: white;
+            border-radius: 10px;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.8rem;
         }
 
-        .file-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
+        .queue-list {
+            max-height: 250px;
+            overflow-y: auto;
         }
 
-        .file-item {
+        .queue-item {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
-            padding: 0.8rem 1rem;
-            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s;
         }
 
-        .file-item:hover {
+        .queue-item:hover {
             background: var(--bg-secondary);
         }
 
-        .file-item.active {
-            background: rgba(74, 111, 165, 0.2);
+        .queue-item.active {
             color: var(--primary);
+            font-weight: 500;
         }
 
-        .file-icon {
-            margin-right: 1rem;
-            width: 24px;
-            text-align: center;
-            color: var(--primary);
-        }
-
-        .file-name {
-            flex: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .loading {
-            padding: 2rem;
-            text-align: center;
+        .queue-item-index {
+            margin-right: 0.8rem;
             color: var(--text-secondary);
         }
 
-        .error {
-            color: #ff6b6b;
-            padding: 1rem;
-            text-align: center;
+        .queue-item-remove {
+            margin-left: auto;
+            color: var(--text-secondary);
+            opacity: 0;
+            transition: opacity 0.2s;
         }
 
-        @media (min-width: 768px) {
-            .container {
-                flex-direction: row;
-                height: 100vh;
-            }
+        .queue-item:hover .queue-item-remove {
+            opacity: 1;
+        }
 
-            .player-container {
-                width: 350px;
-                height: 100vh;
-                border-right: 1px solid var(--border);
-                border-bottom: none;
-            }
-
-            .file-manager {
-                flex: 1;
-                height: 100vh;
-            }
-
+        @media (max-width: 768px) {
             .queue-container {
-                position: fixed;
-                bottom: 0;
-                right: 0;
-                width: 300px;
-                max-height: 300px;
-                background: var(--bg-panel);
-                border: 1px solid var(--border);
-                border-radius: 8px 8px 0 0;
-                overflow-y: auto;
-                transform: translateY(calc(100% - 40px));
-                transition: transform 0.3s;
-                z-index: 100;
-            }
-
-            .queue-container:hover,
-            .queue-container.expanded {
-                transform: translateY(0);
-            }
-
-            .queue-header {
-                padding: 0.5rem 1rem;
-                background: var(--bg-secondary);
-                cursor: pointer;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            .queue-title {
-                font-weight: 500;
-            }
-
-            .queue-count {
-                background: var(--primary);
-                color: white;
-                border-radius: 10px;
-                padding: 0.2rem 0.5rem;
-                font-size: 0.8rem;
-            }
-
-            .queue-list {
-                max-height: 250px;
-                overflow-y: auto;
-            }
-
-            .queue-item {
-                padding: 0.5rem 1rem;
-                border-bottom: 1px solid var(--border);
-                display: flex;
-                align-items: center;
-                cursor: pointer;
-            }
-
-            .queue-item:hover {
-                background: var(--bg-secondary);
-            }
-
-            .queue-item.active {
-                color: var(--primary);
-                font-weight: 500;
-            }
-
-            .queue-item-index {
-                margin-right: 0.8rem;
-                color: var(--text-secondary);
-            }
-
-            .queue-item-remove {
-                margin-left: auto;
-                color: var(--text-secondary);
-                opacity: 0;
-                transition: opacity 0.2s;
-            }
-
-            .queue-item:hover .queue-item-remove {
-                opacity: 1;
-            }
-
-            @media (max-width: 768px) {
-                .queue-container {
-                    width: 100%;
-                    max-height: 200px;
-                }
+                width: 100%;
+                max-height: 200px;
             }
         }
     </style>
@@ -343,7 +325,7 @@
     <div class="player-container">
         <div class="player-info">
             <div class="track-title" id="current-track">Выберите трек</div>
-            <div class="track-path" id="current-path"></div>
+            <div class="track-artist" id="current-artist"></div>
         </div>
 
         <div class="progress-container" id="progress-container">
@@ -378,382 +360,321 @@
         </div>
     </div>
 
-    <div class="file-manager">
-        <div class="breadcrumbs" id="breadcrumbs">
-            <div class="breadcrumb" data-path="">Корневая папка</div>
+    <div class="library-container">
+        <div class="library-nav">
+            <button class="library-nav-btn active" data-view="all">Все треки</button>
+            <button class="library-nav-btn" data-view="artists">Артисты</button>
+            <button class="library-nav-btn" data-view="albums">Альбомы</button>
         </div>
 
-        <div class="file-list" id="file-list">
-            <div class="loading">Загрузка...</div>
+        <div class="library-content">
+            <div class="track-list" id="track-list">
+                <div class="loading">Загрузка треков...</div>
+            </div>
         </div>
-    </div>
-    <div class="queue-container" id="queue-container">
-        <div class="queue-header" id="queue-header">
-            <div class="queue-title">Очередь</div>
-            <div class="queue-count" id="queue-count">0</div>
-        </div>
-        <div class="queue-list" id="queue-list"></div>
     </div>
 </div>
 
+<div class="queue-container" id="queue-container">
+    <div class="queue-header" id="queue-header">
+        <div class="queue-title">Очередь</div>
+        <div class="queue-count" id="queue-count">0</div>
+    </div>
+    <div class="queue-list" id="queue-list"></div>
+</div>
+
 <script>
+    const API_BASE_URL = window.location.origin;
+    let tracks = [];
     let playQueue = [];
     let currentQueueIndex = -1;
-    const API_BASE_URL = 'http://localhost:8080';
-    const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.m4a', '.flac'];
+    let currentView = 'all';
 
+    // Элементы DOM
+    const audio = new Audio();
+    const playBtn = document.getElementById('play-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const progress = document.getElementById('progress');
+    const progressContainer = document.getElementById('progress-container');
+    const currentTimeEl = document.getElementById('current-time');
+    const durationEl = document.getElementById('duration');
+    const currentTrackEl = document.getElementById('current-track');
+    const currentArtistEl = document.getElementById('current-artist');
+    const volumeControl = document.getElementById('volume');
+    const playIcon = document.getElementById('play-icon');
+    const trackList = document.getElementById('track-list');
+    const navButtons = document.querySelectorAll('.library-nav-btn');
+
+    // Элементы очереди
+    const queueContainer = document.getElementById('queue-container');
+    const queueHeader = document.getElementById('queue-header');
+    const queueList = document.getElementById('queue-list');
+    const queueCount = document.getElementById('queue-count');
+
+    // Инициализация
     document.addEventListener('DOMContentLoaded', () => {
-        const audio = new Audio();
-        let currentTrackIndex = 0;
-        let currentFiles = [];
-        let currentPath = '';
-
-        // Элементы DOM
-        const playBtn = document.getElementById('play-btn');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const progress = document.getElementById('progress');
-        const progressContainer = document.getElementById('progress-container');
-        const currentTimeEl = document.getElementById('current-time');
-        const durationEl = document.getElementById('duration');
-        const currentTrackEl = document.getElementById('current-track');
-        const currentPathEl = document.getElementById('current-path');
-        const fileListEl = document.getElementById('file-list');
-        const breadcrumbsEl = document.getElementById('breadcrumbs');
-        const volumeControl = document.getElementById('volume');
-        const playIcon = document.getElementById('play-icon');
-        const queueContainer = document.getElementById('queue-container');
-        const queueHeader = document.getElementById('queue-header');
-        const queueList = document.getElementById('queue-list');
-        const queueCount = document.getElementById('queue-count');
-
-        // Инициализация
         audio.volume = volumeControl.value;
-        loadDirectory('');
+        loadTracks();
+        setupEventListeners();
+    });
 
-        // Воспроизведение/пауза
+    function setupEventListeners() {
+        // Навигация
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                navButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentView = btn.dataset.view;
+                renderTracks();
+            });
+        });
+
+        // Управление плеером
         playBtn.addEventListener('click', togglePlay);
-
-        // Следующий трек
-        nextBtn.addEventListener('click', () => {
-            if (playQueue.length > 0 && currentQueueIndex < playQueue.length - 1) {
-                currentQueueIndex++;
-                playFromQueue(currentQueueIndex);
-            }
-        });
-        
-        // Предыдущий трек
-        prevBtn.addEventListener('click', () => {
-            if (playQueue.length > 0 && currentQueueIndex > 0) {
-                currentQueueIndex--;
-                playFromQueue(currentQueueIndex);
-            }
-        });
-
-        queueHeader.addEventListener('click', () => {
-            queueContainer.classList.toggle('expanded');
-        });
-
-        // Обновление прогресса
+        nextBtn.addEventListener('click', playNext);
+        prevBtn.addEventListener('click', playPrev);
         audio.addEventListener('timeupdate', updateProgress);
-
-        // Клик по прогресс-бару
         progressContainer.addEventListener('click', setProgress);
-
-        // Когда трек закончился
-        audio.addEventListener('ended', () => {
-            if (playQueue.length > 0 && currentQueueIndex < playQueue.length - 1) {
-                currentQueueIndex++;
-                loadTrack(playQueue[currentQueueIndex], currentQueueIndex);
-            } else {
-                playQueue = [];
-                currentQueueIndex = -1;
-                updateQueueDisplay();
-            }
-        });
-
-        // Громкость
+        audio.addEventListener('ended', playNext);
         volumeControl.addEventListener('input', () => {
             audio.volume = volumeControl.value;
         });
 
-        // Функции
+        // Управление очередью
+        queueHeader.addEventListener('click', () => {
+            queueContainer.classList.toggle('expanded');
+        });
+    }
 
-        function togglePlay() {
-            if (currentFiles.length === 0) return;
+    // Загрузка треков
+    async function loadTracks() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/tracks`, {
+                credentials: 'include'
+            });
 
-            if (audio.paused) {
-                audio.play()
-                    .then(() => {
-                        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                    })
-                    .catch(error => {
-                        console.error('Playback failed:', error);
-                        alert('Не удалось воспроизвести трек. Возможно, файл поврежден.');
-                    });
-            } else {
-                audio.pause();
-                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+            tracks = await response.json();
+            console.log('Loaded tracks:', tracks);
+
+            renderTracks();
+
+        } catch (error) {
+            console.error('Error loading tracks:', error);
+            trackList.innerHTML = `
+                    <div class="error">
+                        Ошибка загрузки треков: ${error.message}<br>
+                        Проверьте:<br>
+                        1. Авторизованы ли вы<br>
+                        2. Консоль для подробностей
+                    </div>
+                `;
+        }
+    }
+
+    // Рендер треков
+    function renderTracks() {
+        if (tracks.length === 0) {
+            trackList.innerHTML = '<div class="track-item">Нет треков в библиотеке</div>';
+            return;
         }
 
-        function playCurrentTrack() {
-            const track = currentFiles[currentTrackIndex];
-            if (!track || !isAudioFile(track)) return;
+        let filteredTracks = tracks;
 
-            const fullPath = currentPath ? `${currentPath}/${track}` : track;
-            loadTrack(fullPath);
-            updateActiveFile();
-        }
+        // Здесь можно добавить фильтрацию по артистам/альбомам
+        // когда будет реализована соответствующая логика
 
-        function loadTrack(path, queueIndex = -1) {
-            if (queueIndex >= 0) {
-                currentQueueIndex = queueIndex;
-            }
+        trackList.innerHTML = filteredTracks.map((track, index) => `
+                <div class="track-item" data-id="${track.Id}" data-index="${index}">
+                    <div class="track-icon">
+                        <i class="fas fa-music"></i>
+                    </div>
+                    <div class="track-info">
+                        <div class="track-title">${track.Name}</div>
+                        <div class="track-artist">${track.Artist} • ${track.Album}</div>
+                    </div>
+                    <div class="track-duration">${formatTime(track.ModTime)}</div>
+                </div>
+            `).join('');
 
-            audio.src = `${API_BASE_URL}/tracks/${encodeURIComponent(path)}`;
+        // Обработчики кликов на треки
+        document.querySelectorAll('.track-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const trackId = item.dataset.id;
+                const trackIndex = parseInt(item.dataset.index);
+                const track = tracks.find(t => t.Id === trackId);
 
-            const fileName = path.split('/').pop();
-            currentTrackEl.textContent = fileName.replace(/\.[^/.]+$/, "");
-            currentPathEl.textContent = path;
+                // Добавляем в очередь все треки, начиная с выбранного
+                playQueue = tracks.slice(trackIndex);
+                currentQueueIndex = 0;
 
-            progress.style.width = '0%';
-            currentTimeEl.textContent = '0:00';
-            durationEl.textContent = '0:00';
+                updateQueueDisplay();
+                loadTrack(track);
+            });
+        });
+    }
 
-            audio.addEventListener('loadedmetadata', () => {
-                const durationMinutes = Math.floor(audio.duration / 60);
-                let durationSeconds = Math.floor(audio.duration % 60);
-                if (durationSeconds < 10) durationSeconds = `0${durationSeconds}`;
-                durationEl.textContent = `${durationMinutes}:${durationSeconds}`;
-            }, { once: true });
+    // Форматирование времени
+    function formatTime(modTime) {
+        // Здесь можно реализовать форматирование даты/времени
+        // или продолжительности трека, если она будет в данных
+        return '';
+    }
 
+    // Загрузка трека для воспроизведения
+    function loadTrack(track) {
+        if (!track) return;
+
+        audio.src = `${API_BASE_URL}/tracks/${track.Id}`;
+
+        currentTrackEl.textContent = track.Name;
+        currentArtistEl.textContent = `${track.Artist} • ${track.Album}`;
+
+        progress.style.width = '0%';
+        currentTimeEl.textContent = '0:00';
+        durationEl.textContent = '0:00';
+
+        audio.play()
+            .then(() => {
+                playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                updateQueueHighlight();
+                updateActiveTrack();
+            })
+            .catch(error => {
+                console.error('Playback failed:', error);
+            });
+    }
+
+    // Обновление активного трека в списке
+    function updateActiveTrack() {
+        document.querySelectorAll('.track-item').forEach(item => {
+            item.classList.toggle('active',
+                item.dataset.id === playQueue[currentQueueIndex]?.Id
+            );
+        });
+    }
+
+    // Управление воспроизведением
+    function togglePlay() {
+        if (playQueue.length === 0) return;
+
+        if (audio.paused) {
             audio.play()
                 .then(() => {
                     playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                    updateQueueHighlight();
                 })
                 .catch(error => {
-                    console.error('Autoplay failed:', error);
+                    console.error('Playback failed:', error);
                 });
+        } else {
+            audio.pause();
+            playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
         }
+    }
 
-        function updateProgress() {
-            const { duration, currentTime } = audio;
-            if (isNaN(duration)) return;
-
-            const progressPercent = (currentTime / duration) * 100;
-            progress.style.width = `${progressPercent}%`;
-
-            // Время
-            const currentMinutes = Math.floor(currentTime / 60);
-            let currentSeconds = Math.floor(currentTime % 60);
-            if (currentSeconds < 10) currentSeconds = `0${currentSeconds}`;
-            currentTimeEl.textContent = `${currentMinutes}:${currentSeconds}`;
+    function playNext() {
+        if (playQueue.length > 0 && currentQueueIndex < playQueue.length - 1) {
+            currentQueueIndex++;
+            loadTrack(playQueue[currentQueueIndex]);
+        } else {
+            playQueue = [];
+            currentQueueIndex = -1;
+            updateQueueDisplay();
         }
+    }
 
-        function setProgress(e) {
-            if (isNaN(audio.duration)) return;
-
-            const width = this.clientWidth;
-            const clickX = e.offsetX;
-            const duration = audio.duration;
-            audio.currentTime = (clickX / width) * duration;
+    function playPrev() {
+        if (playQueue.length > 0 && currentQueueIndex > 0) {
+            currentQueueIndex--;
+            loadTrack(playQueue[currentQueueIndex]);
         }
+    }
 
-        function renderBreadcrumbs(path) {
-            console.log('[Breadcrumbs] Rendering for path:', path);
+    function updateProgress() {
+        const { duration, currentTime } = audio;
+        if (isNaN(duration)) return;
 
-            breadcrumbsEl.innerHTML = '';
+        const progressPercent = (currentTime / duration) * 100;
+        progress.style.width = `${progressPercent}%`;
 
-            // Корневая папка
-            const rootCrumb = document.createElement('div');
-            rootCrumb.className = 'breadcrumb';
-            rootCrumb.textContent = 'Корневая папка';
-            rootCrumb.addEventListener('click', () => {
-                console.log('Navigating to root');
-                loadDirectory('');
-            });
-            breadcrumbsEl.appendChild(rootCrumb);
+        const currentMinutes = Math.floor(currentTime / 60);
+        let currentSeconds = Math.floor(currentTime % 60);
+        if (currentSeconds < 10) currentSeconds = `0${currentSeconds}`;
+        currentTimeEl.textContent = `${currentMinutes}:${currentSeconds}`;
+    }
 
-            const parts = path.split('/').filter(p => p.length > 0);
-            let accumulatedPath = '';
+    function setProgress(e) {
+        if (isNaN(audio.duration)) return;
 
-            parts.forEach((part, index) => {
-                // Добавляем разделитель
-                const separator = document.createElement('span');
-                separator.className = 'breadcrumb-separator';
-                separator.innerHTML = '&rsaquo;';
-                breadcrumbsEl.appendChild(separator);
+        const width = this.clientWidth;
+        const clickX = e.offsetX;
+        const duration = audio.duration;
+        audio.currentTime = (clickX / width) * duration;
+    }
 
-                // Важное изменение: накапливаем путь только до текущей части
-                const crumbPath = parts.slice(0, index + 1).join('/');
-                console.log(`Creating crumb for part: ${part}, path: ${crumbPath}`);
-
-                const crumb = document.createElement('div');
-                crumb.className = 'breadcrumb';
-                crumb.textContent = part;
-                crumb.addEventListener('click', () => {
-                    console.log(`Clicked crumb with path: ${crumbPath}`);
-                    loadDirectory(crumbPath);
-                });
-
-                breadcrumbsEl.appendChild(crumb);
-            });
-        }
-
-        function loadDirectory(path) {
-            path = path || '';
-            console.log('[loadDirectory] Loading:', path);
-
-            // Нормализуем путь (удаляем лишние слеши)
-            path = path.replace(/^\/+|\/+$/g, '');
-            currentPath = path;
-
-            fileListEl.innerHTML = '<div class="loading">Загрузка...</div>';
-
-            fetch(`${API_BASE_URL}/tracks?path=${encodeURIComponent(path)}`)
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.json();
-                })
-                .then(files => {
-                    currentFiles = files.filter(file => isDirectory(file) || isAudioFile(file));
-                    console.log('Filtered files:', currentFiles);
-                    renderBreadcrumbs(path);
-                    renderFileList(currentFiles);
-                })
-                .catch(error => {
-                    console.error('Error loading directory:', error);
-                    fileListEl.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
-                });
-        }
-
-        function renderFileList(files) {
-            if (files.length === 0) {
-                fileListEl.innerHTML = '<div class="file-item">Папка пуста</div>';
-                return;
-            }
-
-            fileListEl.innerHTML = files.map((file, index) => {
-                const isDir = isDirectory(file);
-                const icon = isDir ? 'fa-folder' : 'fa-music';
-                const type = isDir ? 'directory' : 'file';
-
-                return `
-                    <div class="file-item" data-name="${file}" data-type="${type}" data-index="${index}">
-                        <div class="file-icon"><i class="fas ${icon}"></i></div>
-                        <div class="file-name">${file}</div>
-                    </div>
-                `;
-            }).join('');
-
-            document.querySelectorAll('.file-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    const fileName = item.dataset.name;
-                    const type = item.dataset.type;
-                    const fileIndex = parseInt(item.dataset.index);
-
-                    if (type === 'directory') {
-                        const newPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-                        loadDirectory(newPath);
-                    } else {
-                        // Добавляем в очередь все файлы начиная с выбранного
-                        const audioFiles = currentFiles.filter(f => !isDirectory(f));
-                        const startIndex = audioFiles.indexOf(fileName);
-
-                        if (startIndex >= 0) {
-                            playQueue = audioFiles.slice(startIndex).map(f =>
-                                currentPath ? `${currentPath}/${f}` : f
-                            );
-                            currentQueueIndex = 0;
-                            updateQueueDisplay();
-                            loadTrack(playQueue[0], 0);
-                        }
-                    }
-                });
-            });
-        }
-
-        function updateActiveFile() {
-            document.querySelectorAll('.file-item').forEach(item => {
-                const fileName = item.dataset.name;
-                const isActive = currentFiles[currentTrackIndex] === fileName && item.dataset.type === 'file';
-                item.classList.toggle('active', isActive);
-            });
-        }
-
-        function isDirectory(filename) {
-            return !filename.includes('.');
-        }
-
-
-        function isAudioFile(filename) {
-            return AUDIO_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(ext));
-        }
-
-        function updateQueueDisplay() {
-            queueList.innerHTML = playQueue.map((track, index) => {
-                const fileName = track.split('/').pop().replace(/\.[^/.]+$/, "");
-                return `
+    // Управление очередью
+    function updateQueueDisplay() {
+        queueList.innerHTML = playQueue.map((track, index) => {
+            return `
                     <div class="queue-item ${index === currentQueueIndex ? 'active' : ''}"
                          data-index="${index}">
                         <div class="queue-item-index">${index + 1}</div>
-                        <div class="queue-item-name">${fileName}</div>
+                        <div class="queue-item-name">${track.Name}</div>
                         <div class="queue-item-remove" data-index="${index}">
                             <i class="fas fa-times"></i>
                         </div>
                     </div>
                 `;
-            }).join('');
+        }).join('');
 
-            queueCount.textContent = playQueue.length;
+        queueCount.textContent = playQueue.length;
 
-            // Обработчики для элементов очереди
-            document.querySelectorAll('.queue-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    if (e.target.closest('.queue-item-remove')) {
-                        e.stopPropagation();
-                        const index = parseInt(e.target.closest('.queue-item-remove').dataset.index);
-                        removeFromQueue(index);
-                    } else {
-                        const index = parseInt(item.dataset.index);
-                        playFromQueue(index);
-                    }
-                });
+        // Обработчики для элементов очереди
+        document.querySelectorAll('.queue-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.queue-item-remove')) {
+                    e.stopPropagation();
+                    const index = parseInt(e.target.closest('.queue-item-remove').dataset.index);
+                    removeFromQueue(index);
+                } else {
+                    const index = parseInt(item.dataset.index);
+                    playFromQueue(index);
+                }
             });
-        }
+        });
+    }
 
-        function updateQueueHighlight() {
-            document.querySelectorAll('.queue-item').forEach(item => {
-                item.classList.toggle('active',
-                    parseInt(item.dataset.index) === currentQueueIndex
-                );
-            });
-        }
+    function updateQueueHighlight() {
+        document.querySelectorAll('.queue-item').forEach(item => {
+            item.classList.toggle('active',
+                parseInt(item.dataset.index) === currentQueueIndex
+            );
+        });
+    }
 
-        function playFromQueue(index) {
-            if (index >= 0 && index < playQueue.length) {
-                currentQueueIndex = index;
-                loadTrack(playQueue[index], index);
+    function playFromQueue(index) {
+        if (index >= 0 && index < playQueue.length) {
+            currentQueueIndex = index;
+            loadTrack(playQueue[index]);
+        }
+    }
+
+    function removeFromQueue(index) {
+        if (index >= 0 && index < playQueue.length) {
+            playQueue.splice(index, 1);
+            if (currentQueueIndex >= index) {
+                currentQueueIndex--;
+            }
+            updateQueueDisplay();
+
+            if (playQueue.length === 0) {
+                currentQueueIndex = -1;
+                audio.pause();
             }
         }
-
-        function removeFromQueue(index) {
-            if (index >= 0 && index < playQueue.length) {
-                playQueue.splice(index, 1);
-                if (currentQueueIndex >= index) {
-                    currentQueueIndex--;
-                }
-                updateQueueDisplay();
-
-                if (playQueue.length === 0) {
-                    currentQueueIndex = -1;
-                    audio.pause();
-                }
-            }
-        }
-    });
+    }
 </script>
 </body>
 </html>

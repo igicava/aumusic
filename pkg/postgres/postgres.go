@@ -34,6 +34,7 @@ func NewPool(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 		cfg.Port,
 		cfg.Database,
 	)
+	fmt.Println(connString)
 	pool, err := pgxpool.New(ctx, connString)
 	if err != nil {
 		logger.GetLoggerFromCtx(ctx).Fatal(ctx, "Failed to connect to postgres", zap.Error(err))

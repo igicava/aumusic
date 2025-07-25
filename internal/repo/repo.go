@@ -106,8 +106,8 @@ func RemoveTrackFromPlaylist(ctx context.Context, pool *pgxpool.Pool, playlistId
 }
 
 func NewUser(ctx context.Context, pool *pgxpool.Pool, user models.User) error {
-	sql := "INSERT INTO users (username, password) VALUES ($1, $2)"
-	_, err := pool.Exec(ctx, sql, user.Name, user.Pass)
+	sql := "INSERT INTO users (name, password, email) VALUES ($1, $2, $3)"
+	_, err := pool.Exec(ctx, sql, user.Name, user.Pass, user.Email)
 	if err != nil {
 		return err
 	}
@@ -115,9 +115,9 @@ func NewUser(ctx context.Context, pool *pgxpool.Pool, user models.User) error {
 }
 
 func GetUser(ctx context.Context, pool *pgxpool.Pool, username string) (models.User, error) {
-	sql := "SELECT username, password FROM users WHERE username = $1"
+	sql := "SELECT name, password, email FROM users WHERE name = $1"
 	var user models.User
-	err := pool.QueryRow(ctx, sql, username).Scan(&user.Name, &user.Pass)
+	err := pool.QueryRow(ctx, sql, username).Scan(&user.Name, &user.Pass, &user.Email)
 	if err != nil {
 		return models.User{}, err
 	}

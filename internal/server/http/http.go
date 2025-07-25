@@ -38,6 +38,8 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	r.HandleFunc("/register", handler.RegisterUser)
 	r.HandleFunc("/login", handler.LoginUser)
 	r.HandleFunc("/logout", handler.LogoutUser)
+	r.HandleFunc("/upload", handler.LoadTracks)
+	r.HandleFunc("/delete/{id}", handler.DeleteTrack)
 
 	mux := middleware(r)
 
