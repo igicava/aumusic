@@ -7,6 +7,7 @@ COPY go.mod ./
 COPY go.sum ./
 
 RUN go mod verify
+RUN go mod tidy
 
 COPY . .
 

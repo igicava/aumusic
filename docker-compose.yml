@@ -42,6 +42,8 @@ services:
       - postgres
     networks:
       - au_network
+    volumes:
+      - ./media:/app/media
     env_file:
       - .env
 

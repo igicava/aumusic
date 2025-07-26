@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	MEDIA         = "/media/"
-	MUSIC         = "/media/music/"
+	MEDIA         = "/app/media/"
+	MUSIC         = "/app/media/music/"
 	MaxUploadSize = 500 << 20
 )
 
