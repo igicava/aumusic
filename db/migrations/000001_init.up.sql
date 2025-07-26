@@ -1,6 +1,6 @@
 create table if not exists users (
     id uuid primary key not null unique default gen_random_uuid(),
-    name text not null not null unique,
+    username text not null not null unique,
     email text not null unique,
     password text not null
 );

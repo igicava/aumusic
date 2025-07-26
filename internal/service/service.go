@@ -7,6 +7,7 @@ import (
 	"aumusic/pkg/hash"
 	"aumusic/pkg/logger"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -25,7 +27,7 @@ const (
 
 var Pool *pgxpool.Pool
 
-func ValidToken(ctx context.Context, token string) (username string, userid string, err error) {
+func ValidToken(ctx context.Context, token string) (string, string, error) {
 	if token == "" {
 		return "", "", http.ErrServerClosed
 	}
@@ -77,22 +79,19 @@ func GetTrack(ctx context.Context, token, id string) (io.ReadSeeker, int64, time
 }
 
 func RegisterUser(ctx context.Context, r *http.Request) error {
-	name := r.FormValue("username")
+	username := r.FormValue("username")
 	email := r.FormValue("email")
-	pass1 := r.FormValue("pass1")
-	pass2 := r.FormValue("pass2")
-	if pass1 != pass2 {
-		return http.ErrServerClosed
-	}
-	passHash, err := hash.HashPasswordSecure(pass1)
+	password := r.FormValue("password")
+	passHash, err := hash.GenerateHash(password, hash.DefaultArgon2Params)
 	if err != nil {
 		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to hash password", zap.Error(err))
 		return err
 	}
 	err = repo.NewUser(ctx, Pool, models.User{
-		Name:  name,
-		Email: email,
-		Pass:  passHash})
+		Username: username,
+		Email:    email,
+		Pass:     passHash,
+	})
 	if err != nil {
 		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to create user", zap.Error(err))
 		return err
@@ -101,21 +100,20 @@ func RegisterUser(ctx context.Context, r *http.Request) error {
 }
 
 func LoginUser(ctx context.Context, r *http.Request) (string, error) {
-	name := r.FormValue("name")
-	pass := r.FormValue("pass")
-	user, err := repo.GetUser(ctx, Pool, name)
+	username := r.FormValue("username")
+	pass := r.FormValue("password")
+	user, err := repo.GetUser(ctx, Pool, username)
 	if err != nil {
 		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to get user", zap.Error(err))
 		return "", err
 	}
 
-	if isValid := hash.AuthenticateUser(user.Pass, pass); isValid != nil {
-		return "", isValid
+	if isValid, _ := hash.VerifyPassword(pass, user.Pass); !isValid {
+		return "", errors.New("invalid password")
 	}
 
-	fmt.Println(r.FormValue("username"), r.FormValue("id"))
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": user.Name,
+		"username": user.Username,
 		"userid":   user.Id,
 	})
 
@@ -144,12 +142,13 @@ func DeleteTrack(ctx context.Context, token, id string) error {
 		return http.ErrServerClosed
 	}
 
-	owner, _, err := ValidToken(ctx, token)
+	_, ownerId, err := ValidToken(ctx, token)
 	if err != nil {
 		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to validate token", zap.Error(err))
 		return err
 	}
-	if owner != track.UserId {
+	if ownerId != track.UserId {
+		logger.GetLoggerFromCtx(ctx).Info(ctx, "User is not owner of track")
 		return http.ErrServerClosed
 	}
 
@@ -166,4 +165,82 @@ func DeleteTrack(ctx context.Context, token, id string) error {
 	}
 
 	return nil
+}
+
+func LoadTracks(ctx context.Context, r *http.Request, artist, album, name, userid string) (int, []string, int, error) {
+	if artist == "" || album == "" {
+		logger.GetLoggerFromCtx(ctx).Info(ctx, "Artist or album is empty")
+		return http.StatusBadRequest, []string{}, 0, errors.New("artist and album are required")
+	}
+
+	// Создаем директорию для артиста и альбома
+	artistPath := filepath.Join(MUSIC, name, sanitizeName(artist))
+	albumPath := filepath.Join(artistPath, sanitizeName(album))
+	if err := os.MkdirAll(albumPath, os.ModePerm); err != nil {
+		logger.GetLoggerFromCtx(ctx).Info(ctx, "Failed to create album directory", zap.Error(err))
+		return http.StatusInternalServerError, []string{}, 0, err
+	}
+
+	// Обрабатываем загруженные файлы
+	files := r.MultipartForm.File["files"]
+	uploadResults := make([]string, 0, len(files))
+
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			logger.GetLoggerFromCtx(ctx).Info(ctx, "Error retrieving the file", zap.Error(err))
+			return http.StatusBadRequest, []string{}, 0, err
+		}
+		defer file.Close()
+
+		// Проверяем тип файла (можно добавить больше проверок)
+		buff := make([]byte, 512)
+		if _, err = file.Read(buff); err != nil {
+			logger.GetLoggerFromCtx(ctx).Info(ctx, "Error reading file", zap.Error(err))
+			return http.StatusInternalServerError, []string{}, 0, err
+		}
+
+		if _, err = file.Seek(0, io.SeekStart); err != nil {
+			logger.GetLoggerFromCtx(ctx).Info(ctx, "Error seeking file", zap.Error(err))
+			return http.StatusInternalServerError, []string{}, 0, err
+		}
+
+		// Создаем файл на сервере
+		dstPath := filepath.Join(albumPath, sanitizeName(fileHeader.Filename))
+		dst, err := os.Create(dstPath)
+		if err != nil {
+			logger.GetLoggerFromCtx(ctx).Info(ctx, "Error creating file on server", zap.Error(err))
+			return http.StatusInternalServerError, []string{}, 0, err
+		}
+		defer dst.Close()
+
+		err = repo.AddTrack(ctx, Pool, models.TrackDB{
+			UserId:  userid,
+			Artist:  artist,
+			Album:   album,
+			Name:    fileHeader.Filename,
+			Path:    dstPath,
+			Size:    fileHeader.Size,
+			ModTime: time.Now(),
+		})
+		if err != nil {
+			logger.GetLoggerFromCtx(ctx).Info(ctx, "Error creating file on server", zap.Error(err))
+			return http.StatusInternalServerError, []string{}, 0, err
+		}
+
+		// Копируем содержимое файла
+		if _, err = io.Copy(dst, file); err != nil {
+			logger.GetLoggerFromCtx(ctx).Info(ctx, "Error saving file", zap.Error(err))
+			return http.StatusInternalServerError, []string{}, 0, err
+		}
+
+		uploadResults = append(uploadResults, fmt.Sprintf("Successfully uploaded %s (%d bytes)", fileHeader.Filename, fileHeader.Size))
+	}
+
+	return http.StatusOK, uploadResults, len(files), nil
+}
+
+func sanitizeName(name string) string {
+	// Удаляем небезопасные символы из имени файла/папки
+	return filepath.Base(name)
 }

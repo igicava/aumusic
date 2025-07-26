@@ -2,7 +2,6 @@ package hash
 
 import (
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -10,131 +9,119 @@ import (
 	"strings"
 )
 
-type Argon2Configuration struct {
-	HashRaw    []byte
-	Salt       []byte
-	TimeCost   uint32
-	MemoryCost uint32
-	Threads    uint8
-	KeyLength  uint32
+type Argon2Params struct {
+	Memory      uint32 // Память в KiB (например, 64MB = 65536)
+	Iterations  uint32 // Количество итераций
+	Parallelism uint8  // Количество потоков
+	SaltLength  uint32 // Длина соли (рекомендуется 16)
+	KeyLength   uint32 // Длина хеша (рекомендуется 32)
 }
 
-func generateCryptographicSalt(saltSize uint32) ([]byte, error) {
-	salt := make([]byte, saltSize)
-	_, err := rand.Read(salt)
-	if err != nil {
-		return nil, fmt.Errorf("salt generation failed: %w", err)
-	}
-	return salt, nil
+var DefaultArgon2Params = Argon2Params{
+	Memory:      64 * 1024, // 64MB
+	Iterations:  3,
+	Parallelism: 2,
+	SaltLength:  16,
+	KeyLength:   32,
 }
 
-func HashPasswordSecure(password string) (string, error) {
-	config := &Argon2Configuration{
-		TimeCost:   2,
-		MemoryCost: 64 * 1024,
-		Threads:    4,
-		KeyLength:  32,
+func GenerateHash(password string, params Argon2Params) (string, error) {
+	// Генерируем случайную соль
+	salt := make([]byte, params.SaltLength)
+	if _, err := rand.Read(salt); err != nil {
+		return "", err
 	}
 
-	salt, err := generateCryptographicSalt(16)
-	if err != nil {
-		return "", fmt.Errorf("password hashing failed: %w", err)
-	}
-	config.Salt = salt
-
-	// Execute Argon2id hashing algorithm
-	config.HashRaw = argon2.IDKey(
+	// Вычисляем хеш с помощью Argon2id
+	hash := argon2.IDKey(
 		[]byte(password),
-		config.Salt,
-		config.TimeCost,
-		config.MemoryCost,
-		config.Threads,
-		config.KeyLength,
+		salt,
+		params.Iterations,
+		params.Memory,
+		params.Parallelism,
+		params.KeyLength,
 	)
 
-	// Generate standardized hash format
-	encodedHash := fmt.Sprintf(
+	// Кодируем хеш и соль в Base64 для хранения
+	encodedSalt := base64.RawStdEncoding.EncodeToString(salt)
+	encodedHash := base64.RawStdEncoding.EncodeToString(hash)
+
+	// Формат: $argon2id$v=19$m=65536,t=3,p=2$salt$hash
+	encodedParams := fmt.Sprintf(
 		"$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version,
-		config.MemoryCost,
-		config.TimeCost,
-		config.Threads,
-		base64.RawStdEncoding.EncodeToString(config.Salt),
-		base64.RawStdEncoding.EncodeToString(config.HashRaw),
+		params.Memory,
+		params.Iterations,
+		params.Parallelism,
+		encodedSalt,
+		encodedHash,
 	)
 
-	return encodedHash, nil
+	return encodedParams, nil
 }
 
-func parseArgon2Hash(encodedHash string) (*Argon2Configuration, error) {
-	components := strings.Split(encodedHash, "$")
-	if len(components) != 6 {
-		return nil, errors.New("invalid hash format structure")
+func VerifyPassword(password, encodedHash string) (bool, error) {
+	// Парсим параметры из строки
+	params, salt, hash, err := decodeHash(encodedHash)
+	if err != nil {
+		return false, err
 	}
 
-	// Validate algorithm identifier
-	if !strings.HasPrefix(components[1], "argon2id") {
-		return nil, errors.New("unsupported algorithm variant")
+	// Вычисляем хеш введенного пароля
+	newHash := argon2.IDKey(
+		[]byte(password),
+		salt,
+		params.Iterations,
+		params.Memory,
+		params.Parallelism,
+		params.KeyLength,
+	)
+
+	// Сравниваем хеши
+	if len(hash) != len(newHash) {
+		return false, nil
 	}
 
-	// Extract version information
+	for i := 0; i < len(hash); i++ {
+		if hash[i] != newHash[i] {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// Парсинг закодированного хеша
+func decodeHash(encodedHash string) (*Argon2Params, []byte, []byte, error) {
+	parts := strings.Split(encodedHash, "$")
+	if len(parts) != 6 {
+		return nil, nil, nil, errors.New("неверный формат хеша")
+	}
+
 	var version int
-	fmt.Sscanf(components[2], "v=%d", &version)
+	if _, err := fmt.Sscanf(parts[2], "v=%d", &version); err != nil {
+		return nil, nil, nil, err
+	}
+	if version != argon2.Version {
+		return nil, nil, nil, errors.New("неподдерживаемая версия Argon2")
+	}
 
-	// Parse configuration parameters
-	config := &Argon2Configuration{}
-	fmt.Sscanf(components[3], "m=%d,t=%d,p=%d",
-		&config.MemoryCost, &config.TimeCost, &config.Threads)
+	params := &Argon2Params{}
+	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &params.Memory, &params.Iterations, &params.Parallelism); err != nil {
+		return nil, nil, nil, err
+	}
 
-	// Decode salt component
-	salt, err := base64.RawStdEncoding.DecodeString(components[4])
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
-		return nil, fmt.Errorf("salt decoding failed: %w", err)
+		return nil, nil, nil, err
 	}
-	config.Salt = salt
+	params.SaltLength = uint32(len(salt))
 
-	// Decode hash component
-	hash, err := base64.RawStdEncoding.DecodeString(components[5])
+	hash, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
-		return nil, fmt.Errorf("hash decoding failed: %w", err)
+		return nil, nil, nil, err
 	}
-	config.HashRaw = hash
-	config.KeyLength = uint32(len(hash))
+	params.KeyLength = uint32(len(hash))
 
-	return config, nil
-}
-
-func verifyPasswordSecure(storedHash, providedPassword string) (bool, error) {
-	// Parse stored hash parameters
-	config, err := parseArgon2Hash(storedHash)
-	if err != nil {
-		return false, fmt.Errorf("hash parsing failed: %w", err)
-	}
-
-	// Generate hash using identical parameters
-	computedHash := argon2.IDKey(
-		[]byte(providedPassword),
-		config.Salt,
-		config.TimeCost,
-		config.MemoryCost,
-		config.Threads,
-		config.KeyLength,
-	)
-
-	// Perform constant-time comparison to prevent timing attacks
-	match := subtle.ConstantTimeCompare(config.HashRaw, computedHash) == 1
-	return match, nil
-}
-
-func AuthenticateUser(storedHash, password string) error {
-	isValid, err := verifyPasswordSecure(storedHash, password)
-	if err != nil {
-		return fmt.Errorf("authentication process failed: %w", err)
-	}
-
-	if !isValid {
-		return errors.New("authentication credentials invalid")
-	}
-
-	return nil
+	return params, salt, hash, nil
 }

@@ -50,6 +50,77 @@
             background: var(--bg-panel);
         }
 
+        .library-nav {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .library-nav-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .library-nav-btn.active {
+            color: var(--primary);
+            background: var(--bg-secondary);
+        }
+
+        .back-btn {
+            margin-right: auto;
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .back-btn.visible {
+            display: block;
+        }
+
+        .upload-btn, .logout-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .upload-btn:hover, .logout-btn:hover {
+            background: #3a5a8f;
+        }
+
+        .action-buttons {
+            margin-left: auto;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .section-title {
+            padding: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+            position: sticky;
+            top: 57px;
+            z-index: 1;
+        }
+
         .track-list {
             display: flex;
             flex-direction: column;
@@ -62,6 +133,7 @@
             align-items: center;
             cursor: pointer;
             transition: background 0.2s;
+            position: relative;
         }
 
         .track-item:hover {
@@ -98,6 +170,38 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .track-actions {
+            display: none;
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .track-item:hover .track-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .track-action-btn {
+            background: var(--bg-secondary);
+            border: none;
+            color: var(--text-secondary);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .track-action-btn:hover {
+            background: var(--primary);
+            color: white;
         }
 
         .player-info {
@@ -181,6 +285,11 @@
             width: 24px;
             height: 24px;
             fill: currentColor;
+        }
+
+        .player-btn.shuffle.active {
+            background: var(--primary);
+            color: white;
         }
 
         .volume-control {
@@ -293,9 +402,26 @@
             color: #ff6b6b;
         }
 
+        .empty-library {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
         @media (max-width: 768px) {
             .queue-container {
                 width: 100%;
+            }
+
+            .action-buttons {
+                margin-left: 0;
+                margin-top: 1rem;
+                width: 100%;
+                justify-content: flex-end;
+            }
+
+            .library-nav {
+                flex-wrap: wrap;
             }
         }
     </style>
@@ -317,17 +443,22 @@
         </div>
 
         <div class="player-controls">
-            <button class="player-btn" id="prev-btn">
+            <button class="player-btn" id="shuffle-btn" title="Случайный порядок">
+                <svg viewBox="0 0 24 24">
+                    <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+                </svg>
+            </button>
+            <button class="player-btn" id="prev-btn" title="Предыдущий трек">
                 <svg viewBox="0 0 24 24">
                     <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
                 </svg>
             </button>
-            <button class="player-btn" id="play-btn">
+            <button class="player-btn" id="play-btn" title="Воспроизвести/Пауза">
                 <svg viewBox="0 0 24 24" id="play-icon">
                     <path d="M8 5v14l11-7z"/>
                 </svg>
             </button>
-            <button class="player-btn" id="next-btn">
+            <button class="player-btn" id="next-btn" title="Следующий трек">
                 <svg viewBox="0 0 24 24">
                     <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
                 </svg>
@@ -341,8 +472,27 @@
     </div>
 
     <div class="library-container">
-        <div class="track-list" id="track-list">
-            <div class="loading">Загрузка треков...</div>
+        <div class="library-nav">
+            <button class="back-btn">
+                <i class="fas fa-arrow-left"></i> Назад
+            </button>
+            <button class="library-nav-btn" id="artists-btn">Артисты</button>
+            <button class="library-nav-btn" id="albums-btn">Альбомы</button>
+            <button class="library-nav-btn active" id="tracks-btn">Треки</button>
+            <div class="action-buttons">
+                <button class="upload-btn" id="upload-btn">
+                    <i class="fas fa-upload"></i> Загрузить
+                </button>
+                <button class="logout-btn" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Выход
+                </button>
+            </div>
+        </div>
+
+        <div class="library-content">
+            <div class="track-list" id="track-list">
+                <div class="loading">Загрузка треков...</div>
+            </div>
         </div>
     </div>
 </div>
@@ -360,6 +510,11 @@
     let tracks = [];
     let playQueue = [];
     let currentQueueIndex = -1;
+    let currentView = 'tracks'; // 'tracks', 'artists', 'albums', 'artistTracks', 'albumTracks', 'artistAlbums'
+    let currentArtist = null;
+    let currentAlbum = null;
+    let isShuffleMode = false;
+    let originalQueueOrder = [];
 
     // DOM элементы
     const audio = new Audio();
@@ -373,12 +528,19 @@
     const playBtn = document.getElementById('play-btn');
     const prevBtn = document.getElementById('prev-btn');
     const nextBtn = document.getElementById('next-btn');
+    const shuffleBtn = document.getElementById('shuffle-btn');
     const playIcon = document.getElementById('play-icon');
     const volumeControl = document.getElementById('volume');
     const queueContainer = document.getElementById('queue-container');
     const queueHeader = document.getElementById('queue-header');
     const queueList = document.getElementById('queue-list');
     const queueCount = document.getElementById('queue-count');
+    const artistsBtn = document.getElementById('artists-btn');
+    const albumsBtn = document.getElementById('albums-btn');
+    const tracksBtn = document.getElementById('tracks-btn');
+    const backBtn = document.querySelector('.back-btn');
+    const uploadBtn = document.getElementById('upload-btn');
+    const logoutBtn = document.getElementById('logout-btn');
 
     // Инициализация
     document.addEventListener('DOMContentLoaded', () => {
@@ -406,6 +568,11 @@
                 throw new Error('Ожидался массив треков');
             }
 
+            if (tracks.length === 0) {
+                trackList.innerHTML = '<div class="empty-library">У вас пока нет треков. Загрузите музыку, чтобы начать слушать.</div>';
+                return;
+            }
+
             renderTrackList();
 
         } catch (error) {
@@ -419,49 +586,367 @@
         }
     }
 
-    // Отрисовка списка треков
+    // Обработка данных библиотеки
+    function processLibraryData() {
+        const artistsMap = new Map();
+        const albumsMap = new Map();
+
+        tracks.forEach(track => {
+            // Обработка артистов
+            if (!artistsMap.has(track.artist)) {
+                artistsMap.set(track.artist, {
+                    name: track.artist,
+                    tracks: [],
+                    albums: new Set()
+                });
+            }
+            const artist = artistsMap.get(track.artist);
+            artist.tracks.push(track);
+            artist.albums.add(track.album);
+
+            // Обработка альбомов
+            const albumKey = `${track.artist}|${track.album}`;
+            if (!albumsMap.has(albumKey)) {
+                albumsMap.set(albumKey, {
+                    artist: track.artist,
+                    name: track.album,
+                    tracks: []
+                });
+            }
+            albumsMap.get(albumKey).tracks.push(track);
+        });
+
+        return {
+            artists: Array.from(artistsMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
+            albums: Array.from(albumsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+        };
+    }
+
+    // Отображение списка треков
     function renderTrackList() {
+        currentView = 'tracks';
+        currentArtist = null;
+        currentAlbum = null;
+
         if (tracks.length === 0) {
-            trackList.innerHTML = '<div class="track-item">Нет треков в библиотеке</div>';
+            trackList.innerHTML = '<div class="empty-library">У вас пока нет треков. Загрузите музыку, чтобы начать слушать.</div>';
             return;
         }
 
-        trackList.innerHTML = tracks.map((track, index) => {
-            // Удаляем расширение файла из названия
-            const trackName = track.name.replace(/\.[^/.]+$/, "");
-            const fileSize = formatFileSize(track.size);
-            const modDate = new Date(track.mod_time).toLocaleDateString();
-
-            return `
+        trackList.innerHTML = `
+                <div class="section-title">Все треки</div>
+                ${tracks.map((track, index) => `
                     <div class="track-item" data-id="${track.id}" data-index="${index}">
                         <div class="track-icon">
                             <i class="fas fa-music"></i>
                         </div>
                         <div class="track-info">
-                            <div class="track-title">${trackName}</div>
+                            <div class="track-title">${track.name.replace(/\.[^/.]+$/, "")}</div>
                             <div class="track-details">
-                                ${track.artist} • ${track.album} • ${fileSize} • ${modDate}
+                                ${track.artist} • ${track.album} • ${formatFileSize(track.size)} • ${new Date(track.mod_time).toLocaleDateString()}
                             </div>
                         </div>
+                        <div class="track-actions">
+                            <button class="track-action-btn delete-btn" data-id="${track.id}" title="Удалить трек">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
-                `;
-        }).join('');
+                `).join('')}
+            `;
 
-        // Назначаем обработчики кликов
-        document.querySelectorAll('.track-item').forEach(item => {
+        setupTrackItemsListeners();
+        backBtn.classList.remove('visible');
+        updateActiveNavButton('tracks');
+    }
+
+    // Отображение списка артистов
+    function renderArtists() {
+        const { artists } = processLibraryData();
+        currentView = 'artists';
+
+        trackList.innerHTML = `
+                <div class="section-title">Артисты</div>
+                ${artists.map(artist => `
+                    <div class="track-item" data-artist="${artist.name}">
+                        <div class="track-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="track-info">
+                            <div class="track-title">${artist.name}</div>
+                            <div class="track-details">
+                                ${artist.tracks.length} треков • ${artist.albums.size} альбомов
+                            </div>
+                        </div>
+                        <div class="track-icon">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+
+        document.querySelectorAll('.track-item[data-artist]').forEach(item => {
             item.addEventListener('click', () => {
+                const artistName = item.dataset.artist;
+                const artistData = processLibraryData().artists.find(a => a.name === artistName);
+                renderArtistAlbums(artistData);
+            });
+        });
+
+        backBtn.classList.remove('visible');
+        updateActiveNavButton('artists');
+    }
+
+    // Отображение альбомов артиста
+    function renderArtistAlbums(artist) {
+        currentArtist = artist;
+        currentView = 'artistAlbums';
+
+        const albums = Array.from(artist.albums).map(albumName => {
+            return {
+                artist: artist.name,
+                name: albumName,
+                tracks: artist.tracks.filter(track => track.album === albumName)
+            };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        trackList.innerHTML = `
+                <div class="section-title">${artist.name} - Альбомы</div>
+                ${albums.map(album => `
+                    <div class="track-item" data-album="${album.name}" data-artist="${album.artist}">
+                        <div class="track-icon">
+                            <i class="fas fa-compact-disc"></i>
+                        </div>
+                        <div class="track-info">
+                            <div class="track-title">${album.name}</div>
+                            <div class="track-details">
+                                ${album.tracks.length} треков
+                            </div>
+                        </div>
+                        <div class="track-icon">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+
+        document.querySelectorAll('.track-item[data-album]').forEach(item => {
+            item.addEventListener('click', () => {
+                const albumName = item.dataset.album;
+                const artistName = item.dataset.artist;
+                const albumData = {
+                    artist: artistName,
+                    name: albumName,
+                    tracks: artist.tracks.filter(track => track.album === albumName)
+                };
+                renderAlbumTracks(albumData);
+            });
+        });
+
+        backBtn.classList.add('visible');
+    }
+
+    // Отображение треков артиста
+    function renderArtistTracks(artist) {
+        currentArtist = artist;
+        currentView = 'artistTracks';
+
+        trackList.innerHTML = `
+                <div class="section-title">${artist.name}</div>
+                ${artist.tracks.map(track => `
+                    <div class="track-item" data-id="${track.id}">
+                        <div class="track-icon">
+                            <i class="fas fa-music"></i>
+                        </div>
+                        <div class="track-info">
+                            <div class="track-title">${track.name.replace(/\.[^/.]+$/, "")}</div>
+                            <div class="track-details">
+                                ${track.album} • ${formatFileSize(track.size)} • ${new Date(track.mod_time).toLocaleDateString()}
+                            </div>
+                        </div>
+                        <div class="track-actions">
+                            <button class="track-action-btn delete-btn" data-id="${track.id}" title="Удалить трек">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+
+        setupTrackItemsListeners();
+        backBtn.classList.add('visible');
+    }
+
+    // Отображение списка альбомов
+    function renderAlbums() {
+        const { albums } = processLibraryData();
+        currentView = 'albums';
+
+        trackList.innerHTML = `
+                <div class="section-title">Альбомы</div>
+                ${albums.map(album => `
+                    <div class="track-item" data-album="${album.name}" data-artist="${album.artist}">
+                        <div class="track-icon">
+                            <i class="fas fa-compact-disc"></i>
+                        </div>
+                        <div class="track-info">
+                            <div class="track-title">${album.name}</div>
+                            <div class="track-details">
+                                ${album.artist} • ${album.tracks.length} треков
+                            </div>
+                        </div>
+                        <div class="track-icon">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+
+        document.querySelectorAll('.track-item[data-album]').forEach(item => {
+            item.addEventListener('click', () => {
+                const albumName = item.dataset.album;
+                const artistName = item.dataset.artist;
+                const albumData = processLibraryData().albums.find(a =>
+                    a.name === albumName && a.artist === artistName
+                );
+                renderAlbumTracks(albumData);
+            });
+        });
+
+        backBtn.classList.remove('visible');
+        updateActiveNavButton('albums');
+    }
+
+    // Отображение треков альбома
+    function renderAlbumTracks(album) {
+        currentAlbum = album;
+        currentView = 'albumTracks';
+
+        trackList.innerHTML = `
+                <div class="section-title">${album.name} (${album.artist})</div>
+                ${album.tracks.map(track => `
+                    <div class="track-item" data-id="${track.id}">
+                        <div class="track-icon">
+                            <i class="fas fa-music"></i>
+                        </div>
+                        <div class="track-info">
+                            <div class="track-title">${track.name.replace(/\.[^/.]+$/, "")}</div>
+                            <div class="track-details">
+                                ${formatFileSize(track.size)} • ${new Date(track.mod_time).toLocaleDateString()}
+                            </div>
+                        </div>
+                        <div class="track-actions">
+                            <button class="track-action-btn delete-btn" data-id="${track.id}" title="Удалить трек">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+
+        setupTrackItemsListeners();
+        backBtn.classList.add('visible');
+    }
+
+    // Настройка обработчиков для элементов треков
+    function setupTrackItemsListeners() {
+        document.querySelectorAll('.track-item[data-id]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.delete-btn')) {
+                    e.stopPropagation();
+                    return;
+                }
+
                 const trackId = item.dataset.id;
-                const trackIndex = parseInt(item.dataset.index);
+                const trackIndex = item.dataset.index ? parseInt(item.dataset.index) :
+                    tracks.findIndex(t => t.id === trackId);
                 const track = tracks.find(t => t.id === trackId);
 
                 if (!track) return;
 
-                // Добавляем в очередь все треки начиная с выбранного
-                playQueue = tracks.slice(trackIndex);
-                currentQueueIndex = 0;
+                // Определяем какие треки добавлять в очередь
+                let queueTracks = [];
+
+                if (currentView === 'artistTracks' && currentArtist) {
+                    queueTracks = currentArtist.tracks;
+                    currentQueueIndex = currentArtist.tracks.findIndex(t => t.id === trackId);
+                }
+                else if (currentView === 'albumTracks' && currentAlbum) {
+                    queueTracks = currentAlbum.tracks;
+                    currentQueueIndex = currentAlbum.tracks.findIndex(t => t.id === trackId);
+                }
+                else {
+                    queueTracks = tracks.slice(trackIndex);
+                    currentQueueIndex = 0;
+                }
+
+                playQueue = queueTracks;
+                originalQueueOrder = [...playQueue];
+
+                if (isShuffleMode) {
+                    shuffleQueue();
+                }
 
                 updateQueueDisplay();
                 playTrack(track);
+            });
+        });
+
+        // Обработчики для кнопок удаления
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const trackId = btn.dataset.id;
+                const track = tracks.find(t => t.id === trackId);
+
+                if (!track) return;
+
+                if (confirm(`Вы уверены, что хотите удалить трек "${track.name.replace(/\.[^/.]+$/, "")}"?`)) {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/delete/${trackId}`, {
+                            method: 'DELETE',
+                            credentials: 'include'
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Ошибка HTTP: ${response.status}`);
+                        }
+
+                        // Удаляем трек из всех списков
+                        tracks = tracks.filter(t => t.id !== trackId);
+
+                        // Обновляем текущий вид
+                        switch (currentView) {
+                            case 'tracks':
+                                renderTrackList();
+                                break;
+                            case 'artistTracks':
+                                if (currentArtist) {
+                                    currentArtist.tracks = currentArtist.tracks.filter(t => t.id !== trackId);
+                                    renderArtistTracks(currentArtist);
+                                }
+                                break;
+                            case 'albumTracks':
+                                if (currentAlbum) {
+                                    currentAlbum.tracks = currentAlbum.tracks.filter(t => t.id !== trackId);
+                                    renderAlbumTracks(currentAlbum);
+                                }
+                                break;
+                            default:
+                                renderTrackList();
+                        }
+
+                        // Удаляем из очереди, если там есть
+                        const queueIndex = playQueue.findIndex(t => t.id === trackId);
+                        if (queueIndex !== -1) {
+                            removeFromQueue(queueIndex);
+                        }
+
+                    } catch (error) {
+                        console.error('Ошибка удаления трека:', error);
+                        alert(`Не удалось удалить трек: ${error.message}`);
+                    }
+                }
             });
         });
     }
@@ -470,7 +955,6 @@
     function playTrack(track) {
         if (!track) return;
 
-        // Удаляем расширение файла для отображения
         const trackName = track.name.replace(/\.[^/.]+$/, "");
 
         currentTrackEl.textContent = trackName;
@@ -482,6 +966,18 @@
         currentTimeEl.textContent = '0:00';
         durationEl.textContent = '0:00';
 
+        // Обработчик для обновления продолжительности трека
+        const onLoadedMetadata = () => {
+            const duration = audio.duration;
+            const durationMinutes = Math.floor(duration / 60);
+            let durationSeconds = Math.floor(duration % 60);
+            if (durationSeconds < 10) durationSeconds = `0${durationSeconds}`;
+            durationEl.textContent = `${durationMinutes}:${durationSeconds}`;
+            audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+        };
+
+        audio.addEventListener('loadedmetadata', onLoadedMetadata);
+
         audio.play()
             .then(() => {
                 playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
@@ -492,6 +988,46 @@
                 console.error('Ошибка воспроизведения:', error);
                 alert(`Не удалось воспроизвести: ${trackName}`);
             });
+    }
+
+    // Перемешивание очереди
+    function shuffleQueue() {
+        if (playQueue.length === 0) return;
+
+        // Сохраняем текущий трек на первом месте
+        const currentTrack = playQueue[currentQueueIndex];
+        const otherTracks = playQueue.filter((_, index) => index !== currentQueueIndex);
+
+        // Перемешиваем остальные треки
+        for (let i = otherTracks.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [otherTracks[i], otherTracks[j]] = [otherTracks[j], otherTracks[i]];
+        }
+
+        // Собираем новую очередь
+        playQueue = [currentTrack, ...otherTracks];
+        currentQueueIndex = 0;
+
+        updateQueueDisplay();
+    }
+
+    // Включение/выключение режима перемешивания
+    function toggleShuffle() {
+        isShuffleMode = !isShuffleMode;
+        shuffleBtn.classList.toggle('active', isShuffleMode);
+
+        if (isShuffleMode) {
+            originalQueueOrder = [...playQueue];
+            shuffleQueue();
+        } else {
+            if (originalQueueOrder.length > 0) {
+                // Восстанавливаем оригинальный порядок, но текущий трек остается на месте
+                const currentTrack = playQueue[currentQueueIndex];
+                playQueue = [...originalQueueOrder];
+                currentQueueIndex = playQueue.findIndex(t => t.id === currentTrack.id);
+                updateQueueDisplay();
+            }
+        }
     }
 
     // Форматирование размера файла
@@ -598,13 +1134,32 @@
 
     // Следующий трек
     function playNext() {
-        if (playQueue.length > 0 && currentQueueIndex < playQueue.length - 1) {
+        if (playQueue.length === 0) return;
+
+        if (isShuffleMode && currentQueueIndex === 0 && playQueue.length > 1) {
+            // В режиме shuffle после первого трека перемешиваем остальные снова
+            shuffleQueue();
+            currentQueueIndex = 0;
+        }
+
+        if (currentQueueIndex < playQueue.length - 1) {
             currentQueueIndex++;
             playTrack(playQueue[currentQueueIndex]);
         } else {
-            playQueue = [];
-            currentQueueIndex = -1;
-            updateQueueDisplay();
+            // Достигнут конец очереди
+            if (isShuffleMode) {
+                // В режиме shuffle начинаем заново с перемешанной очереди
+                shuffleQueue();
+                currentQueueIndex = 0;
+                playTrack(playQueue[0]);
+            } else {
+                // В обычном режиме просто останавливаем воспроизведение
+                playQueue = [];
+                currentQueueIndex = -1;
+                updateQueueDisplay();
+                audio.pause();
+                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+            }
         }
     }
 
@@ -640,12 +1195,39 @@
         audio.currentTime = (clickX / width) * duration;
     }
 
+    // Выход из аккаунта
+    async function logout() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                window.location.href = '/login'; // Перенаправляем на страницу входа
+            } else {
+                throw new Error('Ошибка при выходе из аккаунта');
+            }
+        } catch (error) {
+            console.error('Ошибка выхода:', error);
+            alert(`Не удалось выйти: ${error.message}`);
+        }
+    }
+
+    // Обновление активной кнопки навигации
+    function updateActiveNavButton(activeView) {
+        artistsBtn.classList.toggle('active', activeView === 'artists');
+        albumsBtn.classList.toggle('active', activeView === 'albums');
+        tracksBtn.classList.toggle('active', activeView === 'tracks');
+    }
+
     // Настройка обработчиков событий
     function setupEventListeners() {
         // Управление плеером
         playBtn.addEventListener('click', togglePlay);
         nextBtn.addEventListener('click', playNext);
         prevBtn.addEventListener('click', playPrev);
+        shuffleBtn.addEventListener('click', toggleShuffle);
         audio.addEventListener('timeupdate', updateProgress);
         progressContainer.addEventListener('click', setProgress);
         audio.addEventListener('ended', playNext);
@@ -657,6 +1239,33 @@
         queueHeader.addEventListener('click', () => {
             queueContainer.classList.toggle('expanded');
         });
+
+        // Навигация по библиотеке
+        artistsBtn.addEventListener('click', renderArtists);
+        albumsBtn.addEventListener('click', renderAlbums);
+        tracksBtn.addEventListener('click', renderTrackList);
+
+        // Кнопка "Назад"
+        backBtn.addEventListener('click', () => {
+            if (currentView === 'artistTracks' || currentView === 'artistAlbums') {
+                renderArtists();
+            }
+            else if (currentView === 'albumTracks') {
+                if (currentArtist) {
+                    renderArtistAlbums(currentArtist);
+                } else {
+                    renderAlbums();
+                }
+            }
+        });
+
+        // Кнопка загрузки
+        uploadBtn.addEventListener('click', () => {
+            window.location.href = '/upload';
+        });
+
+        // Кнопка выхода
+        logoutBtn.addEventListener('click', logout);
     }
 </script>
 </body>

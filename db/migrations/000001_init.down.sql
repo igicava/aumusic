@@ -1,4 +1,4 @@
 drop table tracks cascade;
-drop table users;
+drop table users cascade;
 drop table playlist_tracks;
 drop table playlists;

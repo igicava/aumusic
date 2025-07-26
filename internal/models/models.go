@@ -29,8 +29,8 @@ type Playlist struct {
 }
 
 type User struct {
-	Id    string `json:"id"`
-	Name  string `json:"name"`
-	Pass  string `json:"pass"`
-	Email string `json:"email"`
+	Id       string `json:"id"`
+	Username string `json:"username"`
+	Pass     string `json:"pass"`
+	Email    string `json:"email"`
 }
