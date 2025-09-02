@@ -6,17 +6,20 @@ import (
 	"aumusic/internal/repo"
 	"aumusic/pkg/hash"
 	"aumusic/pkg/logger"
+
 	"context"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/minio/minio-go/v7"
+	"go.uber.org/zap"
 )
 
 const (
@@ -25,7 +28,10 @@ const (
 	MaxUploadSize = 500 << 20
 )
 
-var Pool *pgxpool.Pool
+var (
+	Pool  *pgxpool.Pool
+	MinIO *minio.Client
+)
 
 func ValidToken(ctx context.Context, token string) (string, string, error) {
 	if token == "" {
